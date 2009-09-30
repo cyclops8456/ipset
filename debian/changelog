@@ -1,3 +1,10 @@
+ipset (3.0-1+vyatta+4) unstable; urgency=low
+
+  * ignore test
+  * Revert "ignore test"
+
+ -- Stig Thormodsrud <stig@vyatta.com>  Wed, 30 Sep 2009 09:39:06 -0700
+
 ipset (3.0-1+vyatta+3) unstable; urgency=low
 
   * UNRELEASED
