@@ -1,3 +1,9 @@
+ipset (3.0-1+vyatta+6) unstable; urgency=low
+
+  * UNRELEASED
+
+ -- Stig Thormodsrud <stig@vyatta.com>  Thu, 01 Oct 2009 10:58:03 -0700
+
 ipset (3.0-1+vyatta+4) unstable; urgency=low
 
   * ignore test
