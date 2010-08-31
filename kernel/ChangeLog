@@ -1,3 +1,42 @@
+4.3
+  - Kernel 2.6.35 support added
+
+4.2
+  - nethash and ipportnethash types counted every entry twice
+    which could produce bogus entries when listing/saving these types
+    of sets (bug reported by Husnu Demir)
+
+4.1
+  - Do not use init_MUTEX either (Jan Engelhardt)
+  - Improve listing/saving hash type of sets by not copying empty
+    entries unnecessarily to userspace.
+
+4.0
+  - Compilation of ip_set_iptree.c fails with kernel 2.6.20 due to
+    missing include of linux/jiffies.h (Jan Engelhardt)
+  - Do not use DECLARE_MUTEX (compatibility fix on 2.6.31-rt, Jan
+    Engelhardt)
+  - Flushing iptreemap type of sets caused high ksoftirqd load due to
+    zeroed out gc parameter (bug reported by Georg Chini)
+  - New protocol is introduced to handle aligment issues properly
+    (bug reported by Georg Chini)
+  - Binding support is removed
+
+3.2
+  - Mixed up formats in ip_set_iptree.c (Rob Sterenborg)
+  - Don't use 'bool' for backward compatibility reasons (Rob Sterenborg)
+
+3.1
+  - Nonexistent sets were reported as existing sets when testing
+    from userspace in setlist type of sets (bug reported by Victor A.
+    Safronov)
+  - When saving sets, setlist type of sets must come last in order
+    to satisfy the dependency from the elements (bug reported by Marty B.)
+  - Sparse insists that the flags argument to kmalloc() is gfp_t
+    (Stephen Hemminger)
+  - Correct format specifiers and change %i to %d (Jan Engelhardt)
+  - Fix the definition of 'bool' for kernels <= 2.6.18 (Jan Engelhardt)
+
 3.0
   - New kernel-userspace protocol release
   - Bigendian and 64/32bit fixes (Stefan Gula, bugzilla id 593)

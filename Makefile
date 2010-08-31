@@ -5,7 +5,7 @@
 ######################################################################
 
 ifndef KERNEL_DIR
-KERNEL_DIR=/usr/src/linux
+KERNEL_DIR=/lib/modules/`uname -r`/build
 endif
 ifndef KBUILD_OUTPUT
 KBUILD_OUTPUT=$(KERNEL_DIR)
@@ -20,7 +20,7 @@ ifndef V
 V=0
 endif
 
-IPSET_VERSION:=3.0
+IPSET_VERSION:=4.3
 
 PREFIX:=/usr/local
 LIBDIR:=$(PREFIX)/lib
@@ -60,11 +60,13 @@ EXTRA_WARN_FLAGS:=\
 	-Werror
 
 ifndef NO_EXTRA_WARN_FLAGS
-WARN_FLAGS+=$(EXTRA_WARN_FLAGS)
+    WARN_FLAGS+=$(EXTRA_WARN_FLAGS)
 endif
 
-CFLAGS:=$(COPT_FLAGS) $(WARN_FLAGS) -Ikernel/include -I. # -g -DIPSET_DEBUG #-pg
+ABI_FLAGS:=
+CFLAGS:=$(ABI_FLAGS) $(COPT_FLAGS) $(WARN_FLAGS) -Ikernel/include -I. # -g -DIPSET_DEBUG
 SH_CFLAGS:=$(CFLAGS) -fPIC
+LDFLAGS:=$(ABI_FLAGS)
 SETTYPES:=ipmap portmap macipmap
 SETTYPES+=iptree iptreemap
 SETTYPES+=iphash nethash ipporthash ipportiphash ipportnethash
@@ -104,6 +106,11 @@ install: binaries_install modules_install
 clean: $(EXTRA_CLEANS)
 	rm -rf $(PROGRAMS) $(SHARED_LIBS) *.o *~ tests/*~
 	[ -f $(KERNEL_DIR)/net/ipv4/netfilter/Config.in ] || (cd kernel; make -C $(KERNEL_DIR) M=`pwd` clean)
+
+release: clean
+	cp -a . /tmp/ipset-$(IPSET_VERSION)
+	tar cjf ../ipset-$(IPSET_VERSION).tar.bz2 -C /tmp --exclude=.git ipset-$(IPSET_VERSION)
+	rm -rf /tmp/ipset-$(IPSET_VERSION)
 
 #The ipset(8) self
 ipset.o: ipset.c ipset.h
