@@ -22,7 +22,7 @@ endif
 
 IPSET_VERSION:=4.3
 
-PREFIX:=/usr/local
+PREFIX:=/usr
 LIBDIR:=$(PREFIX)/lib
 BINDIR:=$(PREFIX)/sbin
 MANDIR:=$(PREFIX)/man
