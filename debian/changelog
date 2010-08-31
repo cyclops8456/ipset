@@ -1,3 +1,95 @@
+ipset (4.3-1+vyatta+1) unstable; urgency=low
+
+  [ kadlec ]
+  * Userspace part of sets: ipset added (JK)
+  * ipset(8) manpage extended with set match/SET target descriptions
+    (JK)
+  * ipset binary removed... (JK)
+
+  [ /C=DE/ST=Berlin/L=Berlin/O=Netfilter Project/OU=Development/CN=kadlec/emailAddress=kadlec@netfilter.org ]
+  * ipset 2.0 committed
+  * Cosmetic change to sync with kernel modifications (JK)
+  * Makefile corrected (fPIC)
+  * Bug in macipmap (saving) fixed
+  * Update version number
+  * Version 2.1 released: few bugs fixed and nethash type added
+  * ipset 2.1.1 released
+  * iptree set type added
+  * Forgot to add the file :-)
+  * new feature added: IP addresses in nethash type of sets can be
+    tested
+  * Parser bug, fixed by Tom Eastep
+  * Manpage fix and bumping the version number
+  * 2.2.3 version releases: manpage fix in ipset, TODO file added
+  * 2.2.4 released, see fixes in pom-ng/set
+  * ipporthash set type added plus manpage corrections (JK)
+  * Manpage extended with a few words to explain iptree type of sets
+  * Several fixes by Jones Desougi:
+  * Kernel fix documented in Changelog, version number bumped.
+  * ipset 2.2.9 released
+  * Minor changes and return code bugfix
+
+  [ /C=EU/ST=EU/CN=Jozsef Kadlecsik/emailAddress=kadlec@blackhole.kfki.hu ]
+  * New release: 2.3.0 (see ChangeLog)
+  * Manpage update.
+  * ipset -U segfault fix committed.
+  * limits.h is required for UINT_MAX with glibc-2.8
+  * Swen's patches applied:
+  * Initial ipset release with kernel modules included.
+  * Missing log line added.
+  * Support statically linked kernel - no need for pom-ng anymore for
+    ipset at all.
+  * Compatibility cleanup release: kernels >= 2.6.16 and 2.4.36.x are
+    supported.
+  * Fix to compile ipset with 2.4.26.x tree statically.
+  * ChangeLog forked for kernel part + compatibility fix for kernels >=
+    2.6.27 added
+  * ipset 2.4 release
+  * As the manpage says, zero valued set entries cannot be used with
+  *   - macipmap type reported misleading deprecated separator
+  * ipset 2.4.2:
+  * 2.4.3
+  * Complete changelog line and fix typo.
+  * 2.4.4
+  * 2.4.5
+
+  [ Jozsef Kadlecsik ]
+  * 2.4.6
+  * 2.4.7
+  * 2.4.7
+  * Disable extra warning flags
+  * Compatibility: 'bool'
+  * Fix possible duplicates in hashesh.
+
+  [ root ]
+  * Jenkins' hash updated
+  * Kernel changelog on Jenkins' hash update.
+
+  [ Jozsef Kadlecsik ]
+  * Use the new hash really.
+  * Update version in Makefile
+  * Manpage cleanup.
+  * Fix alignment issue on parisc arhictecture (bugzilla id 582).
+  * Respect LDFLAGS settings at compile time (Peter Volkov).
+  * Use spinlock initiator instead of setting the locks directly (Jan
+    Engelhardt).
+  * Release v2.5.0.
+  * ipset 3.0 release
+  * ipset 3.1 release
+  * New 'release' target to make life simpler
+  * New release again, to fix a mistyping of me and get rid of bool.
+  * Include linux/jiffies.h for kernel 2.6.20 (Jan Engelhardt)
+  * ipset 4.0 released
+  * Corrected kernel/ChangeLog entry
+  * 4.1 version released
+  * New version 4.2 released:
+  * ipset-4.3 released
+
+  [ Stig Thormodsrud ]
+  * add .gitignore
+
+ -- Stig Thormodsrud <stig@vyatta.com>  Tue, 31 Aug 2010 14:34:50 -0700
+
 ipset (3.0-1+vyatta+8) unstable; urgency=low
 
   * UNRELEASED
