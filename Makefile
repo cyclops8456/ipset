@@ -103,8 +103,10 @@ modules_install: modules
 
 install: binaries_install modules_install
 
-clean: $(EXTRA_CLEANS)
+binaries_clean:
 	rm -rf $(PROGRAMS) $(SHARED_LIBS) *.o *~ tests/*~
+
+clean: $(EXTRA_CLEANS) binaries_clean
 	[ -f $(KERNEL_DIR)/net/ipv4/netfilter/Config.in ] || (cd kernel; make -C $(KERNEL_DIR) M=`pwd` clean)
 
 release: clean
