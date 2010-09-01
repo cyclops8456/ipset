@@ -1,3 +1,9 @@
+ipset (4.3-1+vyatta+4) unstable; urgency=low
+
+  * add binaries_clean target
+
+ -- An-Cheng Huang <ancheng@vyatta.com>  Wed, 01 Sep 2010 16:59:39 -0700
+
 ipset (4.3-1+vyatta+3) unstable; urgency=low
 
   * fix clean target
