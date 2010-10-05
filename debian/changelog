@@ -1,3 +1,15 @@
+ipset (4.3-1+vyatta+6) unstable; urgency=low
+
+  [ Jozsef Kadlecsik ]
+  * Errorneous semaphore handling in error path fixed
+  * Manpage fix on setlist type of sets.
+  * Manpage fix: reorder lines
+  * New version 4.4 released:
+
+  [ Stig Thormodsrud ]
+
+ -- Stig Thormodsrud <stig@vyatta.com>  Tue, 05 Oct 2010 12:09:04 -0700
+
 ipset (4.3-1+vyatta+5) unstable; urgency=low
 
   * UNRELEASED
