@@ -1,3 +1,9 @@
+ipset (4.4-1+vyatta+2) unstable; urgency=low
+
+  * new branch
+
+ -- An-Cheng Huang <ancheng@vyatta.com>  Tue, 28 Dec 2010 20:42:22 +0000
+
 ipset (4.4-1+vyatta+1) unstable; urgency=low
 
   * UNRELEASED
