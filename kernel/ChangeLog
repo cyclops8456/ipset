@@ -1,3 +1,80 @@
+6.0
+ - Reorganized kernel/ subdir
+ - netfilter: ipset: fix linking with CONFIG_IPV6=n (Patrick McHardy)
+ - netfilter: ipset: send error message manually
+ - netfilter: ipset: add missing break statemtns in 
+   ip_set_get_ip_port() (Patrick McHardy)
+ - netfilter: ipset: add missing include to xt_set.h (Patrick McHardy)
+ - netfilter: ipset: remove unnecessary includes (Patrick McHardy)
+ - netfilter: ipset: use nla_parse_nested() (Patrick McHardy)
+ - Separate ipset errnos completely from system ones and bump protocol
+   version
+ - Use better error codes in xt_set.c
+ - Fix sparse warning about shadowed definition
+ - bitmap:ip type: flavour specific adt functions (Patrick McHardy's review)
+ - bitmap:port type: flavour specific adt functions (Patrick McHardy's
+   review)
+ - Move the type specifici attribute validation to the core
+   (suggested by Patrick McHardy)
+ - Use vzalloc() instead of __vmalloc() (Eric Dumazet, Patrick McHardy)
+ - Use meaningful error messages in xt_set.c (Patrick McHardy's review)
+ - Constified attribute cannot be written (Patrick McHardy's review)
+ - Send (N)ACK at dumping only when NLM_F_ACK is set
+   (Patrick McHardy's review)
+ - Correct the error codes: use ENOENT and EMSGSIZE (Patrick McHardy's
+   review)
+
+5.4
+ - Fixed broken ICMP and ICMPv6 handling
+ - Fix trailing whitespaces and pr_* messages
+ - Un-inline functions which are not small enough (suggested by Patrick McHardy)
+ - Fix module loading at create/header command (reported by Patrick McHardy)
+ - Fix wrong kzalloc flag in type_pf_expire
+ - The get_ip*_port functions are too large to be inlined, move into the core
+ - Add missing __GFP_HIGHMEM flag to __vmalloc (suggested by Eric Dumazet)
+ - Enforce network-order data in the netlink protocol
+ - Use annotated types and fix sparse warnings (suggested by Patrick McHardy)
+ - Move ip_set_alloc, ip_set_free and ip_set_get_ipaddr* into core
+   (suggested by Patrick McHardy)
+ - NETMASK*, HOSTMASK* macros are too generic, use small inline functions
+   (suggested by Patrick McHardy)
+ - Use static LIST_HEAD() for ip_set_type_list (suggested by Patrick McHardy)
+ - Move NLA_PUT_NET* macros to include/net/netlink.h (suggested by Patrick
+   McHardy)
+ - The module parameter max_sets should be unsigned int (reported by Patrick
+   McHardy)
+ - Get rid of ip_set_kernel.h (suggested by Patrick McHardy)
+ - Fix the placement style of boolean operators at continued lines
+   (suggested by Patrick McHardy)
+
+5.3
+ - There is no need to call synchronize_net() at swapping
+ - Replace strncpy with strlcpy at creating a set
+ - Update copyright date and some style changes
+ - Use jhash.h accepted in kernel, with backward compatibility
+ - Separate prefixlens from ip_set core
+ - Remove unused ctnl parameter from call_ad (Jan Engelhardt)
+ - Comment the possible return values of the add/del/test type-functions
+
+5.2
+ - Kernel version check at minimal supported version was mistyped, now fixed.
+
+5.1
+ - Kernel version compatibility: support bumped starting from 2.6.34
+   (Supporting older kernel releases would mean too much burden for me,
+   sorry.)
+ - kernel: use EXPORT_SYMBOL_GPL (Jan Engelhardt)
+ - kernel: const annotations (Jan Engelhardt)
+ - kernel: use __read_mostly for registration-type structures
+   (Jan Engelhardt)
+ - kernel: do not mix const and __read_mostly (Jan Engelhardt)
+ - xt_set: avoid user types in exported kernel headers (Jan Engelhardt)
+ - build: enable parallel building (Jan Engelhardt)
+ - Fix Kbuild for me to delete backup files
+
+5.0
+ - New main branch - ipset completely rewritten
+
 4.4
   - The ipporthash, ipportiphash and ipportnethash set types did not
     work with mixed "src" and "dst" destination parameters of the
