@@ -20,7 +20,7 @@ ifndef V
 V=0
 endif
 
-IPSET_VERSION:=4.4
+IPSET_VERSION:=4.5
 
 PREFIX:=/usr/local
 LIBDIR:=$(PREFIX)/lib
@@ -65,6 +65,7 @@ endif
 
 ABI_FLAGS:=
 CFLAGS:=$(ABI_FLAGS) $(COPT_FLAGS) $(WARN_FLAGS) -Ikernel/include -I. # -g -DIPSET_DEBUG
+CFLAGS+=-DIP_NF_SET_HASHSIZE=$(IP_NF_SET_HASHSIZE)
 SH_CFLAGS:=$(CFLAGS) -fPIC
 LDFLAGS:=$(ABI_FLAGS)
 SETTYPES:=ipmap portmap macipmap
