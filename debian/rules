@@ -8,48 +8,39 @@ else
 	CFLAGS += -O2
 endif
 
-build:
+build: Makefile
+	rm -f debian/*.debhelper*
 	dh_testdir
-	$(MAKE) binaries
+	$(MAKE)
+
+Makefile: Makefile.in
+	./configure --prefix=/usr
+
+Makefile.in: Makefile.am configure.ac
+	autoreconf -i --force
 
 clean:
 	dh_testdir
 	dh_testroot
 	dh_clean 
 
-	$(MAKE) binaries_clean
+	$(MAKE) clean
 
 install: build
-	dh_testdir
-	dh_testroot
-	dh_clean -k 
-	dh_installdirs
-
-	$(MAKE) DESTDIR=$(CURDIR)/debian/ipset binaries_install
-
-	install -m 0644 -D $(CURDIR)/debian/ipset.lintian.override \
-		$(CURDIR)/debian/ipset/usr/share/lintian/overrides/ipset
+	dh install --before dh_auto_configure
+	dh install --after dh_auto_test
 
 binary-indep: build install
 
 binary-arch: build install
-	dh_testdir
-	dh_testroot
-	dh_installchangelogs ChangeLog
-	dh_installdocs
-	dh_link
-	dh_strip
-	dh_compress
-	dh_fixperms
-	dh_installdeb
-	dh_shlibdeps
+	rm -f debian/files
+	dh binary --before dh_gencontrol
 	if [ -f "../.VYATTA_DEV_BUILD" ]; then \
 		dh_gencontrol -- -v999.dev; \
 	else \
 		dh_gencontrol ; \
 	fi
-	dh_md5sums
-	dh_builddeb
+	dh binary --after dh_gencontrol
 
 binary: binary-indep binary-arch
 .PHONY: build clean binary-indep binary-arch binary install

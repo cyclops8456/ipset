@@ -12,55 +12,6 @@ case "$host" in
 esac
 
 dnl Additional arguments
-dnl Kernel build directory or source tree
-AC_ARG_WITH([kbuild],
-            AS_HELP_STRING([--with-kbuild=PATH],
-                           [Path to kernel build directory]),
-            [KBUILDDIR="$withval";])
-AC_ARG_WITH([ksource],
-            AS_HELP_STRING([--with-ksource=PATH],
-                           [Path to kernel source directory, if not the same as the kernel build directory]),
-            [KSOURCEDIR="$withval";])
-AM_CONDITIONAL(WITH_KBUILDDIR, test "$KBUILDDIR" != "")
-AC_SUBST(KBUILDDIR)
-
-dnl Sigh: check kernel version dependencies
-if test "$KBUILDDIR" != ""
-then
-	kbuilddir="$KBUILDDIR"
-else
-	kbuilddir="/lib/modules/`uname -r`/build"
-fi
-
-if test -n "$KSOURCEDIR"; then
-	ksourcedir="$KSOURCEDIR"
-elif test -e "$kbuilddir/include/linux/netfilter/nfnetlink.h"; then
-	ksourcedir="$kbuilddir"
-else
-	ksourcedir="/lib/modules/$(uname -r)/source"
-fi
-if test ! -e "$ksourcedir/include/linux/netfilter/nfnetlink.h"
-then
-	AC_MSG_ERROR([Invalid kernel source directory $ksourcedir])
-fi
-
-if test ! -e "$kbuilddir/.config"
-then
-	AC_MSG_ERROR([The kernel build directory $kbuilddir is not configured])
-fi
-
-AC_PROG_GREP
-
-if test "X`$GREP '^CONFIG_IP6_NF_IPTABLES=' $kbuilddir/.config`" = "X"
-then
-	AC_MSG_ERROR([The kernel build directory $kbuilddir is not configured with IP6_NF_IPTABLES support (ip6tables)])
-fi
-
-if test "X`$GREP 'NFNL_SUBSYS_IPSET' $ksourcedir/include/linux/netfilter/nfnetlink.h`" = "X"
-then
-	AC_MSG_ERROR([The kernel source directory $ksourcedir is not patched with netlink.patch to support ipset])
-fi
-
 dnl Maximal number of sets supported by the kernel, default 256
 AC_ARG_WITH([maxsets],
 	    AS_HELP_STRING([--with-maxsets=256],
