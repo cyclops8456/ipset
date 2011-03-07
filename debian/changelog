@@ -1,3 +1,9 @@
+ipset (6.0-1+vyatta2) unstable; urgency=low
+
+  * getservbyname is case-sensitive
+
+ -- An-Cheng Huang <ancheng@vyatta.com>  Mon, 07 Mar 2011 11:41:02 -0800
+
 ipset (6.0-1+vyatta1) unstable; urgency=low
 
   * merge new upstream ipset 6.0
