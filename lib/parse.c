@@ -304,7 +304,7 @@ int
 ipset_parse_tcp_port(struct ipset_session *session,
 		     enum ipset_opt opt, const char *str)
 {
-	return ipset_parse_tcpudp_port(session, opt, str, "TCP");
+	return ipset_parse_tcpudp_port(session, opt, str, "tcp");
 }
 
 /**
@@ -327,7 +327,7 @@ ipset_parse_single_tcp_port(struct ipset_session *session,
 	assert(opt == IPSET_OPT_PORT || opt == IPSET_OPT_PORT_TO);
 	assert(str);
 
-	return ipset_parse_port(session, opt, str, "TCP");
+	return ipset_parse_port(session, opt, str, "tcp");
 }
 
 /**
@@ -530,7 +530,7 @@ ipset_parse_proto_port(struct ipset_session *session,
 		}
 		goto error;
 	} else {
-		proto = "TCP";	
+		proto = "tcp";
 		err = ipset_data_set(data, IPSET_OPT_PROTO, &p);
 		if (err)
 			goto error;
