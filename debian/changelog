@@ -1,3 +1,136 @@
+ipset (6.9-1+vyatta1) unstable; urgency=low
+
+  [ Jozsef Kadlecsik ]
+  * Errorneous semaphore handling in error path fixed
+  * Manpage fix on setlist type of sets.
+  * Manpage fix: reorder lines
+  * New version 4.4 released:
+  * Take into account the compile time setting of the default hash size
+  * New version 4.5 released
+  * hash:ip,port* types with IPv4
+  * Manpage was not installed
+  * Fix checking the revision of the set type at create command
+  * SCTP, UDPLITE support added
+  * Fix revision reporting
+  * ipset 6.1 released
+  * list:set timeout variant fixes
+  * References are protected by rwlock instead of mutex
+  * Add explicit text message to detect patched kernel.
+  * Timeout can be modified for already added elements
+  * Manpage update
+  * ipset 6.2 released
+  * ipset/Kconfig was a mixed up kernel config file, fixed (Michael
+    Tokarev)
+  * Testsuite changes: keep temporary files
+  * bitmap:ip,mac type requires "src" for MAC
+  * Whitespace fixes: some space before tab slipped in.
+  * set match and SET target fixes
+  * Testsuite checks added
+  * ipset 6.3 released
+  * Use unified diff output in tests
+  * Sorting is dependent on the locale settings, use LC_ALL=C
+  * Options and flags support added to the kernel API
+  * Fix order of listing of sets
+  * Support listing setnames and headers too
+  * Fix XML listing, remove broken unused "elements" tag
+  * Get rid of the trailing empty line at listing sets.
+  * ipset 6.4 released
+  * Ignore -n flag (list just setnames) when sets are to be saved
+  * Fix adding ranges to hash types
+  * Set type support with multiple revisions added
+  * Update ipset help text to reflect SCTP and UDPLITE support
+  * Disable type revisions which are not supported both by the kernel
+    and ipset
+  * Support range for IPv4 at adding/deleting elements for hash:*net*
+    types
+  * ipset 6.5 released
+  * Remove outdated checking of IPv6 support from configure.ac
+  * Use proper timeout parameter to jiffies conversion
+  * Remove variable 'ret' in type_pf_tdel(), which is set but not used
+  * Removed old, not used hashing method ip_set_chash
+  * Accept "\r\n" terminated lines in restore files
+  * Adding ranges to hash types with timeout could still fail, fixed
+  * Take into account cidr value for the from address when creating the
+    set
+  * ip_set_flush returned -EPROTO instead of -IPSET_ERR_PROTOCOL, fixed
+  * ipset_mnl_query: in debug mode print the errno returned by the cb
+    function
+  * Use unified from/to address masking and check the usage
+  * hash:net stress test in range notation added
+  * Protocol-level debugging support added
+  * Fix the message sequence number book-keeping
+  * Accept "\r\n" terminated COMMIT command in restore files
+  * Restore with bitmap:port and list:set types did not work, fixed
+  * ipset 6.6 released
+  * Drop supporting kernel versions below 2.6.35
+  * Remove supporting set types iptree and iptreemap
+  * Fix warnings reported by valgrind
+  * Fix long time uncovered bug at adding string attributes to the
+    netlink message
+  * hash:net test may seem to fail due to the too wide grep pattern, fix
+    it
+  * Remove iptree tests and compatibility element parsing
+  * Add xt_action_param to the variant level kadt functions, ipset API
+    change
+  * Fix return code for destroy when sets are in use
+  * Use the stored first cidr value instead of '1'
+  * hash:* tests may seem to fail due to the too wide grep pattern, fix
+    them
+  * hash:net,iface type introduced
+  * Whitespace and coding fixes detected by checkpatch.pl
+  * ipset 6.7 released
+  * README file corrections from Richard Lucassen
+  * Make possible to hash some part of the data element only.
+  * hash:net,iface fixed to handle overlapping nets behind different
+    interfaces
+
+  [ Chris Friesen ]
+  * Fix compiler warnings "'hash_ip4_data_next' declared inline after
+    being called"
+
+  [ Jozsef Kadlecsik ]
+  * Update the manpage and document the limits in hash:net,iface.
+  * ipset 6.8 released
+  * Autoload set type modules safely
+  * Dumping error triggered removing references twice and lead to kernel
+    BUG
+
+  [ Joe Perches ]
+  * netfilter: Remove unnecessary OOM logging messages
+
+  [ Jan Engelhardt ]
+  * netfilter: ipset: avoid use of kernel-only types
+  * netfilter: ipset: expose userspace-relevant parts in ip_set.h
+
+  [ Jozsef Kadlecsik ]
+  * Propagate "expose userspace-relevant parts in ip_set.h" to ipset
+    source
+
+  [ Jan Engelhardt ]
+  * ipset: use NFPROTO_ constants
+  * build: abort autogen on subcommand failure
+  * build: move ipset_errcode into library
+
+  [ Jesper Juhl ]
+  * Remove redundant linux/version.h includes from net/
+
+  [ Greg Rose ]
+  * rtnetlink: Compute and store minimum ifinfo dump size
+
+  [ Jozsef Kadlecsik ]
+  * Complete Kconfig with hash:net,iface type
+  * ipset 6.9 released
+  * Fix compiling ipset as external kernel modules
+  * ipset 6.9.1 released
+  * Make tidy complete
+
+  [ Mathieu Bridon ]
+  * Optionally disable building the kernel module.
+
+  [ Stephen Hemminger ]
+
+ -- Stephen Hemminger <stephen.hemminger@vyatta.com>  Thu, 27 Oct 2011 16:16:50 +0200
+
 ipset (6.0-1+vyatta3) unstable; urgency=low
 
   * new branch
