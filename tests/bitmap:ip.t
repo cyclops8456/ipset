@@ -37,13 +37,13 @@
 # Range: List set
 0 ipset list test | sed 's/timeout ./timeout x/' > .foo
 # Range: Check listing
-0 diff -I 'Size in memory.*' .foo bitmap:ip.t.list4 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo bitmap:ip.t.list4
 # Sleep 5s so that entries can time out
 0 sleep 5s
 # Range: List set after timeout
 0 ipset list test > .foo
 # Range: Check listing
-0 diff -I 'Size in memory.*' .foo bitmap:ip.t.list0 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo bitmap:ip.t.list0
 # Range: Flush test set
 0 ipset flush test
 # Range: Delete test set
@@ -51,7 +51,7 @@
 # Network: Try to create a set from an invalid network with timeout
 1 ipset create test bitmap:ip range 2.0.0.0/15 timeout 5
 # Network: Create a set from a valid network with timeout
-0 ipset create test bitmap:ip range 2.0.0.0/16 timeout 5
+0 ipset create test bitmap:ip range 2.0.0.1/16 timeout 5
 # Network: Add lower boundary
 0 ipset add test 2.0.0.0 timeout 0
 # Network: Add upper boundary
@@ -79,13 +79,13 @@
 # Network: List set
 0 ipset list test | sed 's/timeout ./timeout x/' > .foo
 # Network: Check listing
-0 diff -I 'Size in memory.*' .foo bitmap:ip.t.list5 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo bitmap:ip.t.list5
 # Sleep 5s so that entries can time out
 0 sleep 5s
 # Network: List set
 0 ipset list test > .foo
 # Network: Check listing
-0 diff -I 'Size in memory.*' .foo bitmap:ip.t.list1 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo bitmap:ip.t.list1
 # Network: Flush test set
 0 ipset flush test
 # Network: Delete test set
@@ -121,13 +121,13 @@
 # Subnets: List set
 0 ipset list test | sed 's/timeout ./timeout x/' > .foo
 # Subnets: Check listing
-0 diff -I 'Size in memory.*' .foo bitmap:ip.t.list6 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo bitmap:ip.t.list6
 # Sleep 5s so that entries can time out
 0 sleep 5s
 # Subnets: List set
 0 ipset list test > .foo
 # Subnets: Check listing
-0 diff -I 'Size in memory.*' .foo bitmap:ip.t.list2 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo bitmap:ip.t.list2
 # Subnets: Flush test set
 0 ipset flush test
 # Subnets: Delete test set
@@ -147,7 +147,17 @@
 # Full: List set
 0 ipset list test > .foo
 # Full: Check listing
-0 diff -I 'Size in memory.*' .foo bitmap:ip.t.list3 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo bitmap:ip.t.list3
+# Full: flush set
+0 ipset flush test
+# Full: add element with 1s timeout
+0 ipset add test 1.1.1.1 timeout 1
+# Full: readd element with 3s timeout
+0 ipset add test 1.1.1.1 timeout 3 -exist
+# Full: sleep 2s
+0 sleep 2s
+# Full: check readded element
+0 ipset test test 1.1.1.1
 # Full: Delete test set
 0 ipset destroy test
 # eof

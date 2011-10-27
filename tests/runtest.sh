@@ -10,8 +10,13 @@ tests="$tests ipporthash hash:ip,port hash:ip6,port"
 tests="$tests ipportiphash hash:ip,port,ip hash:ip6,port,ip6"
 tests="$tests nethash hash:net hash:net6 hash:net,port hash:net6,port"
 tests="$tests hash:ip,port,net hash:ip6,port,net6"
-tests="$tests setlist"
-tests="$tests iptree iptreemap"
+tests="$tests hash:net,iface.t"
+tests="$tests setlist restore"
+# tests="$tests iptree iptreemap"
+
+# For correct sorting:
+LC_ALL=C
+export LC_ALL
 
 add_tests() {
 	# inet|inet6 network
@@ -103,6 +108,6 @@ for x in $tests; do
 	esac
 done
 rmmod ip_set >/dev/null 2>&1
-rm -f .foo.err
+rm -f .foo*
 echo "All tests are passed"
 

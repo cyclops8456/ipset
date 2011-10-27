@@ -1,3 +1,73 @@
+<<<<<<< HEAD
+=======
+6.9.1
+ - Fix compiling ipset as external kernel modules
+
+6.9
+ - Complete Kconfig with hash:net,iface type (standalone package)
+ - rtnetlink: Compute and store minimum ifinfo dump size (Greg Rose)
+ - Remove redundant linux/version.h includes from net/ (Jesper Juhl)
+ - ipset: use NFPROTO_ constants (Jan Engelhardt)
+ - netfilter: ipset: expose userspace-relevant parts in ip_set.h
+   (Jan Engelhardt)
+ - netfilter: ipset: avoid use of kernel-only types (Jan Engelhardt)
+ - netfilter: Remove unnecessary OOM logging messages (Joe Perches)
+ - Dumping error triggered removing references twice and lead to kernel BUG
+ - Autoload set type modules safely
+
+6.8
+ - Fix compiler warnings "'hash_ip4_data_next' declared inline after being
+   called" (Chris Friesen)
+ - hash:net,iface fixed to handle overlapping nets behind different
+   interfaces
+ - Make possible to hash some part of the data element only.
+
+6.7
+ - Whitespace and coding fixes, detected by checkpatch.pl
+ - hash:net,iface type introduced
+ - Use the stored first cidr value instead of '1'
+ - Fix return code for destroy when sets are in use
+ - Add xt_action_param to the variant level kadt functions, ipset API change
+ - Drop supporting kernel versions below 2.6.35
+
+6.6
+ - Use unified from/to address masking and check the usage
+ - ip_set_flush returned -EPROTO instead of -IPSET_ERR_PROTOCOL, fixed
+ - Take into account cidr value for the from address when creating the set
+ - Adding ranges to hash types with timeout could still fail, fixed
+ - Removed old, not used hashing method ip_set_chash
+ - Remove variable 'ret' in type_pf_tdel(), which is set but not used
+ - Use proper timeout parameter to jiffies conversion
+
+6.5
+ - Support range for IPv4 at adding/deleting elements for hash:*net* types
+ - Set type support with multiple revisions added
+ - Fix adding ranges to hash types
+ 
+6.4
+ - Support listing setnames and headers too
+ - Fix the order of listing of sets
+ - Options and flags support added to the kernel API
+
+6.3
+ - ipset/Kconfig was a mixed up kernel config file, fixed (Michael Tokarev)
+ - bitmap:ip,mac type requires "src" for MAC, enforce it
+ - whitespace fixes: some space before tab slipped in
+ - set match and SET target fixes (bugs reported by Lennert Buytenhek)
+
+6.2
+ - list:set timeout variant fixes
+ - References are protected by rwlock instead of mutex
+ - Add explicit text message to detect patched kernel (netlink.patch)
+ - Timeout can be modified for already added elements
+
+6.1
+ - The hash:*port* types ignored the address range with non TCP/UDP, fixed
+ - Fix checking the revision number of the set type at create command
+ - SCTP, UDPLITE support to hash:*port* types added
+ - Fix revision reporting got broken by the revision checking patch
+
+>>>>>>> 0331a4ade2c13558ea171c90056eb8c3697d1880
 6.0
  - Reorganized kernel/ subdir
  - netfilter: ipset: fix linking with CONFIG_IPV6=n (Patrick McHardy)
@@ -74,6 +144,7 @@
 
 5.0
  - New main branch - ipset completely rewritten
+<<<<<<< HEAD
 
 4.4
   - The ipporthash, ipportiphash and ipportnethash set types did not
@@ -84,6 +155,8 @@
 
 4.3
   - Kernel 2.6.35 support added
+=======
+>>>>>>> 0331a4ade2c13558ea171c90056eb8c3697d1880
 
 4.2
   - nethash and ipportnethash types counted every entry twice

@@ -27,7 +27,7 @@
 # Range: List set
 0 ipset -L test > .foo
 # Range: Check listing
-0 diff -I 'Size in memory.*' .foo portmap.t.list0 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo portmap.t.list0
 # Range: Flush test set
 0 ipset -F test
 # Range: Delete test set
@@ -47,7 +47,7 @@
 # Full: List set
 0 ipset -L test > .foo
 # Full: Check listing
-0 diff -I 'Size in memory.*' .foo portmap.t.list1 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo portmap.t.list1
 # Full: Flush test set
 0 ipset -F test
 # Full: Delete test set
@@ -71,15 +71,23 @@
 # Full: List set
 0 ipset -L test | sed 's/timeout ./timeout x/' > .foo
 # Full: Check listing
-0 diff -I 'Size in memory.*' .foo portmap.t.list3 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo portmap.t.list3
 # Full: sleep 5s so that elements can timeout
 0 sleep 5
 # Full: List set
 0 ipset -L test > .foo
 # Full: Check listing
-# 0 diff -I 'Size in memory.*' .foo portmap.t.list2 && rm .foo
+# 0 diff -u -I 'Size in memory.*' .foo portmap.t.list2
 # Full: Flush test set
 0 ipset -F test
+# Full: add element with 1s timeout
+0 ipset add test 567 timeout 1
+# Full: readd element with 3s timeout
+0 ipset add test 567 timeout 3 -exist
+# Full: sleep 2s
+0 sleep 2s
+# Full: check readded element
+0 ipset test test 567
 # Full: Delete test set
 0 ipset -X test
 # eof

@@ -1,7 +1,7 @@
 /* Copyright 2007-2010 Jozsef Kadlecsik (kadlec@blackhole.kfki.hu)
  *
- * This program is free software; you can redistribute it and/or modify   
- * it under the terms of the GNU General Public License version 2 as 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 #include <libipset/data.h>			/* IPSET_OPT_* */
@@ -20,7 +20,7 @@ static const struct ipset_arg list_set_create_args[] = {
 	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
 	},
 	{ },
-}; 
+};
 
 static const struct ipset_arg list_set_adt_args[] = {
 	{ .name = { "timeout", NULL },
@@ -36,7 +36,7 @@ static const struct ipset_arg list_set_adt_args[] = {
 	  .parse = ipset_parse_after,
 	},
 	{ },
-}; 
+};
 
 static const char list_set_usage[] =
 "create SETNAME list:set\n"
@@ -50,10 +50,10 @@ struct ipset_type ipset_list_set0 = {
 	.name = "list:set",
 	.alias = { "setlist", NULL },
 	.revision = 0,
-	.family = AF_UNSPEC,
+	.family = NFPROTO_UNSPEC,
 	.dimension = IPSET_DIM_ONE,
-	.elem = { 
-		[IPSET_DIM_ONE] = { 
+	.elem = {
+		[IPSET_DIM_ONE - 1] = {
 			.parse = ipset_parse_setname,
 			.print = ipset_print_name,
 			.opt = IPSET_OPT_NAME

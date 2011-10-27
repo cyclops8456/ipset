@@ -14,7 +14,7 @@ build: Makefile
 	$(MAKE)
 
 Makefile: Makefile.in
-	./configure --prefix=/usr
+	./configure --prefix=/usr --with-kmod=no
 
 Makefile.in: Makefile.am configure.ac
 	autoreconf -i --force

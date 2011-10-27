@@ -1,7 +1,7 @@
 /* Copyright 2007-2010 Jozsef Kadlecsik (kadlec@blackhole.kfki.hu)
  *
- * This program is free software; you can redistribute it and/or modify   
- * it under the terms of the GNU General Public License version 2 as 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 #include <libipset/data.h>			/* IPSET_OPT_* */
@@ -63,7 +63,7 @@ static const struct ipset_arg hash_ip_add_args[] = {
 	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
 	},
 	{ },
-}; 
+};
 
 static const char hash_ip_usage[] =
 "create SETNAME hash:ip\n"
@@ -81,18 +81,17 @@ static const char hash_ip_usage[] =
 
 struct ipset_type ipset_hash_ip0 = {
 	.name = "hash:ip",
-	.alias = { "iphash", "iptree", "iptreemap", NULL },
+	.alias = { "iphash", NULL },
 	.revision = 0,
-	.family = AF_INET46,
+	.family = NFPROTO_IPSET_IPV46,
 	.dimension = IPSET_DIM_ONE,
-	.elem = { 
-		[IPSET_DIM_ONE] = { 
+	.elem = {
+		[IPSET_DIM_ONE - 1] = {
 			.parse = ipset_parse_ip4_single6,
 			.print = ipset_print_ip,
 			.opt = IPSET_OPT_IP
 		},
 	},
-	.compat_parse_elem = ipset_parse_iptimeout,
 	.args = {
 		[IPSET_CREATE] = hash_ip_create_args,
 		[IPSET_ADD] = hash_ip_add_args,

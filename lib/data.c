@@ -1,13 +1,13 @@
 /* Copyright 2007-2010 Jozsef Kadlecsik (kadlec@blackhole.kfki.hu)
  *
- * This program is free software; you can redistribute it and/or modify   
- * it under the terms of the GNU General Public License version 2 as 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 #include <assert.h>				/* assert */
 #include <arpa/inet.h>				/* ntoh* */
 #include <net/ethernet.h>			/* ETH_ALEN */
-#include <sys/socket.h>				/* AF_ */
+#include <net/if.h>				/* IFNAMSIZ */
 #include <stdlib.h>				/* malloc, free */
 #include <string.h>				/* memset */
 
@@ -17,7 +17,7 @@
 #include <libipset/utils.h>			/* inXcpy */
 #include <libipset/data.h>			/* prototypes */
 
-/* Internal data structure to hold 
+/* Internal data structure to hold
  * a) input data entered by the user or
  * b) data received from kernel
  *
@@ -66,11 +66,13 @@ struct ipset_data {
 		/* ADT/LIST/SAVE */
 		struct {
 			union nf_inet_addr ip2;
+			union nf_inet_addr ip2_to;
 			uint8_t cidr2;
 			uint8_t proto;
 			char ether[ETH_ALEN];
 			char name[IPSET_MAXNAMELEN];
 			char nameref[IPSET_MAXNAMELEN];
+			char iface[IFNAMSIZ];
 		} adt;
 	};
 };
@@ -78,7 +80,7 @@ struct ipset_data {
 static void
 copy_addr(uint8_t family, union nf_inet_addr *ip, const void *value)
 {
-	if (family == AF_INET)
+	if (family == NFPROTO_IPV4)
 		in4cpy(&ip->in, value);
 	else
 		in6cpy(&ip->in6, value);
@@ -171,7 +173,7 @@ ipset_data_ignored(struct ipset_data *data, enum ipset_opt opt)
 {
 	bool ignored;
 	assert(data);
-	
+
 	ignored = data->ignored & IPSET_FLAG(opt);
 	data->ignored |= IPSET_FLAG(opt);
 
@@ -210,12 +212,12 @@ ipset_data_set(struct ipset_data *data, enum ipset_opt opt, const void *value)
 		break;
 	/* CADT options */
 	case IPSET_OPT_IP:
-		if (!(data->family == AF_INET || data->family == AF_INET6))
+		if (!(data->family == NFPROTO_IPV4 || data->family == NFPROTO_IPV6))
 			return -1;
 		copy_addr(data->family, &data->ip, value);
 		break;
 	case IPSET_OPT_IP_TO:
-		if (!(data->family == AF_INET || data->family == AF_INET6))
+		if (!(data->family == NFPROTO_IPV4 || data->family == NFPROTO_IPV6))
 			return -1;
 		copy_addr(data->family, &data->ip_to, value);
 		break;
@@ -285,15 +287,23 @@ ipset_data_set(struct ipset_data *data, enum ipset_opt opt, const void *value)
 		ipset_strlcpy(data->adt.nameref, value, IPSET_MAXNAMELEN);
 		break;
 	case IPSET_OPT_IP2:
-		if (!(data->family == AF_INET || data->family == AF_INET6))
+		if (!(data->family == NFPROTO_IPV4 || data->family == NFPROTO_IPV6))
 			return -1;
 		copy_addr(data->family, &data->adt.ip2, value);
+		break;
+	case IPSET_OPT_IP2_TO:
+		if (!(data->family == NFPROTO_IPV4 || data->family == NFPROTO_IPV6))
+			return -1;
+		copy_addr(data->family, &data->adt.ip2_to, value);
 		break;
 	case IPSET_OPT_CIDR2:
 		data->adt.cidr2 = *(const uint8_t *) value;
 		break;
 	case IPSET_OPT_PROTO:
 		data->adt.proto = *(const uint8_t *) value;
+		break;
+	case IPSET_OPT_IFACE:
+		ipset_strlcpy(data->adt.iface, value, IFNAMSIZ);
 		break;
 	/* Swap/rename */
 	case IPSET_OPT_SETNAME2:
@@ -306,6 +316,9 @@ ipset_data_set(struct ipset_data *data, enum ipset_opt opt, const void *value)
 	case IPSET_OPT_BEFORE:
 		cadt_flag_type_attr(data, opt, IPSET_FLAG_BEFORE);
 		break;
+	case IPSET_OPT_PHYSDEV:
+		cadt_flag_type_attr(data, opt, IPSET_FLAG_PHYSDEV);
+		break;
 	case IPSET_OPT_FLAGS:
 		data->flags = *(const uint32_t *)value;
 		break;
@@ -315,7 +328,7 @@ ipset_data_set(struct ipset_data *data, enum ipset_opt opt, const void *value)
 	default:
 		return -1;
 	};
-	
+
 	ipset_data_flags_set(data, IPSET_FLAG(opt));
 	return 0;
 }
@@ -334,7 +347,7 @@ ipset_data_get(const struct ipset_data *data, enum ipset_opt opt)
 {
 	assert(data);
 	assert(opt != IPSET_OPT_NONE);
-	
+
 	if (!(opt == IPSET_OPT_TYPENAME || ipset_data_test(data, opt)))
 		return NULL;
 
@@ -401,10 +414,14 @@ ipset_data_get(const struct ipset_data *data, enum ipset_opt opt)
 		return data->adt.nameref;
 	case IPSET_OPT_IP2:
 		return &data->adt.ip2;
+	case IPSET_OPT_IP2_TO:
+		return &data->adt.ip2_to;
 	case IPSET_OPT_CIDR2:
 		return &data->adt.cidr2;
 	case IPSET_OPT_PROTO:
 		return &data->adt.proto;
+	case IPSET_OPT_IFACE:
+		return &data->adt.iface;
 	/* Swap/rename */
 	case IPSET_OPT_SETNAME2:
 		return data->setname2;
@@ -414,6 +431,7 @@ ipset_data_get(const struct ipset_data *data, enum ipset_opt opt)
 		return &data->flags;
 	case IPSET_OPT_CADT_FLAGS:
 	case IPSET_OPT_BEFORE:
+	case IPSET_OPT_PHYSDEV:
 		return &data->cadt_flags;
 	default:
 		return NULL;
@@ -436,7 +454,8 @@ ipset_data_sizeof(enum ipset_opt opt, uint8_t family)
 	case IPSET_OPT_IP:
 	case IPSET_OPT_IP_TO:
 	case IPSET_OPT_IP2:
-		return family == AF_INET ? sizeof(uint32_t)
+	case IPSET_OPT_IP2_TO:
+		return family == NFPROTO_IPV4 ? sizeof(uint32_t)
 					 : sizeof(struct in6_addr);
 	case IPSET_OPT_PORT:
 	case IPSET_OPT_PORT_TO:
@@ -463,8 +482,9 @@ ipset_data_sizeof(enum ipset_opt opt, uint8_t family)
 		return sizeof(uint8_t);
 	case IPSET_OPT_ETHER:
 		return ETH_ALEN;
-	/* Flags counted once */
+	/* Flags doesn't counted once :-( */
 	case IPSET_OPT_BEFORE:
+	case IPSET_OPT_PHYSDEV:
 		return sizeof(uint32_t);
 	default:
 		return 0;
@@ -490,14 +510,14 @@ ipset_data_setname(const struct ipset_data *data)
  * @data: data blob
  *
  * Return the INET family supported by the set from the data blob.
- * If the family is not set yet, AF_UNSPEC is returned.
+ * If the family is not set yet, NFPROTO_UNSPEC is returned.
  */
 uint8_t
 ipset_data_family(const struct ipset_data *data)
 {
 	assert(data);
 	return ipset_data_test(data, IPSET_OPT_FAMILY)
-		? data->family : AF_UNSPEC;
+		? data->family : NFPROTO_UNSPEC;
 }
 
 /**
@@ -512,9 +532,9 @@ uint8_t
 ipset_data_cidr(const struct ipset_data *data)
 {
 	assert(data);
-	return ipset_data_test(data, IPSET_OPT_CIDR) ? data->cidr : 
-	       data->family == AF_INET ? 32 : 
-	       data->family == AF_INET6 ? 128 : 0;
+	return ipset_data_test(data, IPSET_OPT_CIDR) ? data->cidr :
+	       data->family == NFPROTO_IPV4 ? 32 :
+	       data->family == NFPROTO_IPV6 ? 128 : 0;
 }
 
 /**

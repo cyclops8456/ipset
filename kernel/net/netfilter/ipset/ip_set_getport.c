@@ -11,6 +11,7 @@
 #include <linux/skbuff.h>
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
+#include <linux/sctp.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -35,7 +36,20 @@ get_port(const struct sk_buff *skb, int protocol, unsigned int protooff,
 		*port = src ? th->source : th->dest;
 		break;
 	}
-	case IPPROTO_UDP: {
+	case IPPROTO_SCTP: {
+		sctp_sctphdr_t _sh;
+		const sctp_sctphdr_t *sh;
+
+		sh = skb_header_pointer(skb, protooff, sizeof(_sh), &_sh);
+		if (sh == NULL)
+			/* No choice either */
+			return false;
+
+		*port = src ? sh->source : sh->dest;
+		break;
+	}
+	case IPPROTO_UDP:
+	case IPPROTO_UDPLITE: {
 		struct udphdr _udph;
 		const struct udphdr *uh;
 
@@ -119,10 +133,10 @@ ip_set_get_ip_port(const struct sk_buff *skb, u8 pf, bool src, __be16 *port)
 	u8 proto;
 
 	switch (pf) {
-	case AF_INET:
+	case NFPROTO_IPV4:
 		ret = ip_set_get_ip4_port(skb, src, port, &proto);
 		break;
-	case AF_INET6:
+	case NFPROTO_IPV6:
 		ret = ip_set_get_ip6_port(skb, src, port, &proto);
 		break;
 	default:

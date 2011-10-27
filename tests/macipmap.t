@@ -41,7 +41,7 @@
 # Range: List set
 0 ipset -L test > .foo
 # Range: Check listing
-0 diff -I 'Size in memory.*' .foo macipmap.t.list0 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo macipmap.t.list0
 # Range: Flush test set
 0 ipset -F test
 # Range: Delete test set
@@ -49,7 +49,7 @@
 # Network: Try to create a set from an invalid network
 1 ipset -N test macipmap --network 2.0.0.0/15
 # Network: Create a set from a valid network
-0 ipset -N test macipmap --network 2.0.0.0/16
+0 ipset -N test macipmap --network 2.0.0.1/16
 # Network: Add lower boundary
 0 ipset -A test 2.0.0.0
 # Network: Add upper boundary
@@ -81,7 +81,7 @@
 # Network: List set
 0 ipset -L test > .foo
 # Network: Check listing
-0 diff -I 'Size in memory.*' .foo macipmap.t.list1 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo macipmap.t.list1
 # Network: Flush test set
 0 ipset -F test
 # Network: Delete test set
@@ -121,15 +121,23 @@
 # Range: List set
 0 ipset -L test | sed 's/timeout ./timeout x/' > .foo
 # Range: Check listing
-0 diff -I 'Size in memory.*' .foo macipmap.t.list3 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo macipmap.t.list3
 # Range: sleep 5s so that elements can timeout
 0 sleep 5
 # Range: List set
 0 ipset -L test | sed 's/timeout ./timeout x/' > .foo
 # Range: Check listing
-0 diff -I 'Size in memory.*' .foo macipmap.t.list2 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo macipmap.t.list2
 # Range: Flush test set
 0 ipset -F test
+# Range: add element with 1s timeout
+0 ipset add test 2.0.200.214,00:11:22:33:44:57 timeout 1
+# Range: readd element with 3s timeout
+0 ipset add test 2.0.200.214,00:11:22:33:44:57 timeout 3 -exist
+# Range: sleep 2s
+0 sleep 2s
+# Range: check readded element
+0 ipset test test 2.0.200.214
 # Range: Delete test set
 0 ipset -X test
 # eof

@@ -1,7 +1,7 @@
 /* Copyright 2007-2010 Jozsef Kadlecsik (kadlec@blackhole.kfki.hu)
  *
- * This program is free software; you can redistribute it and/or modify   
- * it under the terms of the GNU General Public License version 2 as 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 #include <assert.h>				/* assert */
@@ -28,8 +28,8 @@ struct ipset {
 	struct ipset *next;
 };
 
-static struct ipset_type *typelist = NULL;	/* registered set types */
-static struct ipset *setlist = NULL;		/* cached sets */
+static struct ipset_type *typelist;		/* registered set types */
+static struct ipset *setlist;			/* cached sets */
 
 /**
  * ipset_cache_add - add a set to the cache
@@ -57,7 +57,7 @@ ipset_cache_add(const char *name, const struct ipset_type *type,
 	ipset_strlcpy(n->name, name, IPSET_MAXNAMELEN);
 	n->type = type;
 	n->family = family;
-	n->next = NULL;	
+	n->next = NULL;
 
 	if (setlist == NULL) {
 		setlist = n;
@@ -109,7 +109,7 @@ ipset_cache_del(const char *name)
 	}
 	if (match == NULL)
 		return -EEXIST;
-	
+
 	free(match);
 	return 0;
 }
@@ -168,17 +168,18 @@ ipset_cache_swap(const char *from, const char *to)
 		ipset_strlcpy(b->name, from, IPSET_MAXNAMELEN);
 		return 0;
 	}
-		
+
 	return -EEXIST;
 }
 
 #define MATCH_FAMILY(type, f)	\
-	(f == AF_UNSPEC || type->family == f || type->family == AF_INET46)
+	(f == NFPROTO_UNSPEC || type->family == f || \
+	 type->family == NFPROTO_IPSET_IPV46)
 
 bool
 ipset_match_typename(const char *name, const struct ipset_type *type)
 {
-	const char * const * alias = type->alias;
+	const char * const *alias = type->alias;
 
 	if (STREQ(name, type->name))
 		return true;
@@ -189,7 +190,7 @@ ipset_match_typename(const char *name, const struct ipset_type *type)
 		alias++;
 	}
 	return false;
-} 
+}
 
 static inline const struct ipset_type *
 create_type_get(struct ipset_session *session)
@@ -198,7 +199,7 @@ create_type_get(struct ipset_session *session)
 	struct ipset_data *data;
 	const char *typename;
 	uint8_t family, tmin = 0, tmax = 0;
-	const uint8_t *kmin, *kmax;
+	uint8_t kmin, kmax;
 	int ret;
 
 	data = ipset_session_data(session);
@@ -215,20 +216,21 @@ create_type_get(struct ipset_session *session)
 		if (ipset_match_typename(typename, t)
 		    && MATCH_FAMILY(t, family)) {
 			if (match == NULL) {
-		    		match = t;
-		    		tmax = t->revision;
+				match = t;
+				tmin = tmax = t->revision;
 			} else if (t->family == match->family)
 				tmin = t->revision;
-		}	
+		}
 	}
 	if (!match)
 		return ipset_errptr(session,
 				    "Syntax error: unknown settype %s",
 				    typename);
-	
+
 	/* Family is unspecified yet: set from matching set type */
-	if (family == AF_UNSPEC && match->family != AF_UNSPEC) {
-		family = match->family == AF_INET46 ? AF_INET : match->family;
+	if (family == NFPROTO_UNSPEC && match->family != NFPROTO_UNSPEC) {
+		family = match->family == NFPROTO_IPSET_IPV46 ?
+			 NFPROTO_IPV4 : match->family;
 		ipset_data_set(data, IPSET_OPT_FAMILY, &family);
 	}
 
@@ -240,44 +242,59 @@ create_type_get(struct ipset_session *session)
 	if (ret != 0)
 		return NULL;
 
-	kmax = ipset_data_get(data, IPSET_OPT_REVISION);
+	kmin = kmax = *(const uint8_t *)ipset_data_get(data,
+						IPSET_OPT_REVISION);
 	if (ipset_data_test(data, IPSET_OPT_REVISION_MIN))
-		kmin = ipset_data_get(data, IPSET_OPT_REVISION_MIN);
-	else
-		kmin = kmax;
-	if (MAX(tmin, *kmin) > MIN(tmax, *kmax)) {
-		if (*kmin > tmax)
+		kmin = *(const uint8_t *)ipset_data_get(data,
+						IPSET_OPT_REVISION_MIN);
+
+	if (MAX(tmin, kmin) > MIN(tmax, kmax)) {
+		if (kmin > tmax)
 			return ipset_errptr(session,
-				"Kernel supports %s type with family %s "
-				"in minimal revision %u while ipset library "
-				"in maximal revision %u. "
-				"You need to upgrade your ipset library.",
+				"Kernel supports %s type, family %s "
+				"with minimal revision %u while ipset program "
+				"with maximal revision %u.\n"
+				"You need to upgrade your ipset program.",
 				typename,
-				family == AF_INET ? "INET" :
-				family == AF_INET6 ? "INET6" : "UNSPEC",
-				*kmin, tmax);
+				family == NFPROTO_IPV4 ? "INET" :
+				family == NFPROTO_IPV6 ? "INET6" : "UNSPEC",
+				kmin, tmax);
 		else
 			return ipset_errptr(session,
-				"Kernel supports %s type with family %s "
-				"in maximal revision %u while ipset library "
-				"in minimal revision %u. "
+				"Kernel supports %s type, family %s "
+				"with maximal revision %u while ipset program "
+				"with minimal revision %u.\n"
 				"You need to upgrade your kernel.",
 				typename,
-				family == AF_INET ? "INET" :
-				family == AF_INET6 ? "INET6" : "UNSPEC",
-				*kmax, tmin);
+				family == NFPROTO_IPV4 ? "INET" :
+				family == NFPROTO_IPV6 ? "INET6" : "UNSPEC",
+				kmax, tmin);
 	}
-	
+
+	/* Disable unsupported revisions */
+	for (match = NULL, t = typelist; t != NULL; t = t->next) {
+		/* Skip revisions which are unsupported by the kernel */
+		if (t->kernel_check == IPSET_KERNEL_MISMATCH)
+			continue;
+		if (ipset_match_typename(typename, t)
+		    && MATCH_FAMILY(t, family)) {
+			if (t->revision < kmin || t->revision > kmax)
+				t->kernel_check = IPSET_KERNEL_MISMATCH;
+			else if (match == NULL)
+				match = t;
+		}
+	}
 	match->kernel_check = IPSET_KERNEL_OK;
 found:
 	ipset_data_set(data, IPSET_OPT_TYPE, match);
-	
+
 	return match;
 }
 
 #define set_family_and_type(data, match, family) do {		\
-	if (family == AF_UNSPEC && match->family != AF_UNSPEC)	\
-		family = match->family == AF_INET46 ? AF_INET : match->family;\
+	if (family == NFPROTO_UNSPEC && match->family != NFPROTO_UNSPEC)	\
+		family = match->family == NFPROTO_IPSET_IPV46 ? \
+			 NFPROTO_IPV4 : match->family;\
 	ipset_data_set(data, IPSET_OPT_FAMILY, &family);	\
 	ipset_data_set(data, IPSET_OPT_TYPE, match);		\
 } while (0)
@@ -292,7 +309,7 @@ adt_type_get(struct ipset_session *session)
 	const struct ipset_type *match;
 	const char *setname, *typename;
 	const uint8_t *revision;
-	uint8_t family = AF_UNSPEC;
+	uint8_t family = NFPROTO_UNSPEC;
 	int ret;
 
 	data = ipset_session_data(session);
@@ -315,7 +332,7 @@ adt_type_get(struct ipset_session *session)
 		return NULL;
 
 	typename = ipset_data_get(data, IPSET_OPT_TYPENAME);
-	revision = ipset_data_get(data, IPSET_OPT_REVISION);	
+	revision = ipset_data_get(data, IPSET_OPT_REVISION);
 	family = ipset_data_family(data);
 
 	/* Check registered types */
@@ -338,8 +355,8 @@ adt_type_get(struct ipset_session *session)
 				    "ipset library does not support the "
 				    "settype with that family and revision.",
 				    setname, typename,
-				    family == AF_INET ? "inet" :
-				    family == AF_INET6 ? "inet6" : "unspec",
+				    family == NFPROTO_IPV4 ? "inet" :
+				    family == NFPROTO_IPV6 ? "inet6" : "unspec",
 				    *revision);
 
 	set_family_and_type(data, match, family);
@@ -395,7 +412,7 @@ ipset_type_check(struct ipset_session *session)
 	const struct ipset_type *t, *match = NULL;
 	struct ipset_data *data;
 	const char *typename;
-	uint8_t family = AF_UNSPEC, revision;
+	uint8_t family = NFPROTO_UNSPEC, revision;
 
 	assert(session);
 	data = ipset_session_data(session);
@@ -530,7 +547,7 @@ void
 ipset_cache_fini(void)
 {
 	struct ipset *set;
-	
+
 	while (setlist) {
 		set = setlist;
 		setlist = setlist->next;

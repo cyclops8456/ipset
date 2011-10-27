@@ -1,7 +1,7 @@
 /* Copyright 2007-2010 Jozsef Kadlecsik (kadlec@blackhole.kfki.hu)
  *
- * This program is free software; you can redistribute it and/or modify   
- * it under the terms of the GNU General Public License version 2 as 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 #include <libipset/data.h>			/* IPSET_OPT_* */
@@ -60,7 +60,7 @@ static const struct ipset_arg hash_ipportip_create_args[] = {
 	  .parse = ipset_parse_ignored,
 	},
 	{ },
-}; 
+};
 
 static const struct ipset_arg hash_ipportip_add_args[] = {
 	{ .name = { "timeout", NULL },
@@ -68,9 +68,9 @@ static const struct ipset_arg hash_ipportip_add_args[] = {
 	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
 	},
 	{ },
-}; 
+};
 
-static const char hash_ipportip_usage[] =
+static const char hash_ipportip1_usage[] =
 "create SETNAME hash:ip,port,ip\n"
 "		[family inet|inet6]\n"
 "               [hashsize VALUE] [maxelem VALUE]\n"
@@ -82,27 +82,27 @@ static const char hash_ipportip_usage[] =
 "      IP is a valid IPv4 or IPv6 address (or hostname).\n"
 "      Adding/deleting multiple elements in IP/CIDR or FROM-TO form\n"
 "      in the first IP component is supported for IPv4.\n"
-"      Adding/deleting multiple elements with TCP/UDP port range\n"
-"      is supported both for IPv4 and IPv6.\n";
+"      Adding/deleting multiple elements with TCP/SCTP/UDP/UDPLITE\n"
+"      port range is supported both for IPv4 and IPv6.\n";
 
-struct ipset_type ipset_hash_ipportip0 = {
+struct ipset_type ipset_hash_ipportip1 = {
 	.name = "hash:ip,port,ip",
 	.alias = { "ipportiphash", NULL },
-	.revision = 0,
-	.family = AF_INET46,
+	.revision = 1,
+	.family = NFPROTO_IPSET_IPV46,
 	.dimension = IPSET_DIM_THREE,
-	.elem = { 
-		[IPSET_DIM_ONE] = { 
+	.elem = {
+		[IPSET_DIM_ONE - 1] = {
 			.parse = ipset_parse_ip4_single6,
 			.print = ipset_print_ip,
 			.opt = IPSET_OPT_IP
 		},
-		[IPSET_DIM_TWO] = { 
+		[IPSET_DIM_TWO - 1] = {
 			.parse = ipset_parse_proto_port,
 			.print = ipset_print_proto_port,
 			.opt = IPSET_OPT_PORT
 		},
-		[IPSET_DIM_THREE] = { 
+		[IPSET_DIM_THREE - 1] = {
 			.parse = ipset_parse_single_ip,
 			.print = ipset_print_ip,
 			.opt = IPSET_OPT_IP2
@@ -150,6 +150,6 @@ struct ipset_type ipset_hash_ipportip0 = {
 			| IPSET_FLAG(IPSET_OPT_IP2),
 	},
 
-	.usage = hash_ipportip_usage,
+	.usage = hash_ipportip1_usage,
 	.usagefn = ipset_port_usage,
 };

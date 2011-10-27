@@ -60,6 +60,14 @@ start)
 	$cmd -A OUTPUT -d $NET -j DROP
 	cat /dev/null > .foo.err
 	;;
+del)
+	$cmd -F INPUT
+	$cmd -A INPUT -j SET --del-set ipport src,src
+	;;
+timeout)
+	../src/ipset n test hash:ip,port timeout 2
+	$cmd -A INPUT -j SET --add-set test src,src --timeout 10 --exist
+	;;
 stop)
 	$cmd -F
 	$cmd -X

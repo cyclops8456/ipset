@@ -21,13 +21,13 @@
 # IP: List set
 0 ipset -L test | sed 's/timeout ./timeout x/' > .foo0 && ./sort.sh .foo0
 # IP: Check listing
-0 diff -I 'Size in memory.*' .foo hash:ip.t.list2 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo hash:ip.t.list2
 # Sleep 5s so that element can time out
 0 sleep 5
 # IP: List set
 0 ipset -L test 2>/dev/null > .foo0 && ./sort.sh .foo0
 # IP: Check listing
-0 diff -I 'Size in memory.*' .foo hash:ip.t.list0 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo hash:ip.t.list0
 # IP: Flush test set
 0 ipset -F test
 # IP: Add multiple elements in one step
@@ -60,6 +60,14 @@
 0 n=`ipset -S test | wc -l` && test $n -eq 8161
 # IP: Destroy sets
 0 ipset -X
+# IP: Create set to add a range
+0 ipset new test hash:ip hashsize 64
+# IP: Add a range which forces a resizing
+0 ipset add test 10.0.0.0-10.0.3.255
+# IP: Check that correct number of elements are added
+0 n=`ipset list test|grep '^10.0'|wc -l` && test $n -eq 1024
+# IP: Destroy sets
+0 ipset -X
 # Network: Create a set with timeout
 0 ipset -N test iphash --hashsize 128 --netmask 24 timeout 5
 # Network: Add zero valued element
@@ -87,15 +95,23 @@
 # Network: List set
 0 ipset -L test | sed 's/timeout ./timeout x/' > .foo0 && ./sort.sh .foo0
 # Network: Check listing
-0 diff -I 'Size in memory.*' -I 'Size in memory.*' .foo hash:ip.t.list3 && rm .foo
+0 diff -u -I 'Size in memory.*' -I 'Size in memory.*' .foo hash:ip.t.list3
 # Sleep 5s so that elements can time out
 0 sleep 5
 # Network: List set
 0 ipset -L test > .foo
 # Network: Check listing
-0 diff -I 'Size in memory.*' .foo hash:ip.t.list1 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo hash:ip.t.list1
 # Network: Flush test set
 0 ipset -F test
+# Network: add element with 1s timeout
+0 ipset add test 200.100.0.12 timeout 1
+# Network: readd element with 3s timeout
+0 ipset add test 200.100.0.12 timeout 3 -exist
+# Network: sleep 2s
+0 sleep 2s
+# Network: check readded element
+0 ipset test test 200.100.0.12
 # Network: Delete test set
 0 ipset -X test
 # eof

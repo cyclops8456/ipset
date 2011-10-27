@@ -37,13 +37,13 @@
 # List set
 0 ipset list test | sed 's/timeout ./timeout x/' > .foo0 && ./sort.sh .foo0
 # Check listing
-0 diff -I 'Size in memory.*' .foo hash:net,port.t.list0
+0 diff -u -I 'Size in memory.*' .foo hash:net,port.t.list0
 # Sleep 5s so that element can time out
 0 sleep 5
 # IP: List set
 0 ipset -L test 2>/dev/null > .foo0 && ./sort.sh .foo0
 # IP: Check listing
-0 diff -I 'Size in memory.*' .foo hash:net,port.t.list1 && rm .foo
+0 diff -u -I 'Size in memory.*' .foo hash:net,port.t.list1
 # Flush test set
 0 ipset flush test
 # Add multiple elements in one step
@@ -54,4 +54,20 @@
 0 n=`ipset save test|wc -l` && test $n -eq 4
 # Delete test set
 0 ipset destroy test
+# Create set to add a range
+0 ipset new test hash:net,port hashsize 64
+# Add a range which forces a resizing
+0 ipset add test 10.0.0.0/24,tcp:80-1105
+# Check that correct number of elements are added
+0 n=`ipset list test|grep '^10.0'|wc -l` && test $n -eq 1026
+# Destroy set
+0 ipset -X test
+# Create set to add a range and with range notation in the network
+0 ipset new test hash:net,port hashsize 64
+# Add a range which forces a resizing
+0 ipset add test 10.0.0.0-10.0.2.255,tcp:80-1105
+# Check that correct number of elements are added
+0 n=`ipset list test|grep '^10.0'|wc -l` && test $n -eq 2052
+# Destroy set
+0 ipset -X test
 # eof

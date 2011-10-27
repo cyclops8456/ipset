@@ -11,6 +11,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/types.h>
+
 /* The protocol version */
 #define IPSET_PROTOCOL		6
 
@@ -104,6 +106,8 @@ enum {
 	IPSET_ATTR_NAMEREF,
 	IPSET_ATTR_IP2,
 	IPSET_ATTR_CIDR2,
+	IPSET_ATTR_IP2_TO,
+	IPSET_ATTR_IFACE,
 	__IPSET_ATTR_ADT_MAX,
 };
 #define IPSET_ATTR_ADT_MAX	(__IPSET_ATTR_ADT_MAX - 1)
@@ -142,12 +146,18 @@ enum ipset_errno {
 enum ipset_cmd_flags {
 	IPSET_FLAG_BIT_EXIST	= 0,
 	IPSET_FLAG_EXIST	= (1 << IPSET_FLAG_BIT_EXIST),
+	IPSET_FLAG_BIT_LIST_SETNAME = 1,
+	IPSET_FLAG_LIST_SETNAME	= (1 << IPSET_FLAG_BIT_LIST_SETNAME),
+	IPSET_FLAG_BIT_LIST_HEADER = 2,
+	IPSET_FLAG_LIST_HEADER	= (1 << IPSET_FLAG_BIT_LIST_HEADER),
 };
 
 /* Flags at CADT attribute level */
 enum ipset_cadt_flags {
 	IPSET_FLAG_BIT_BEFORE	= 0,
 	IPSET_FLAG_BEFORE	= (1 << IPSET_FLAG_BIT_BEFORE),
+	IPSET_FLAG_BIT_PHYSDEV	= 1,
+	IPSET_FLAG_PHYSDEV	= (1 << IPSET_FLAG_BIT_PHYSDEV),
 };
 
 /* Commands with settype-specific attributes */
@@ -158,6 +168,32 @@ enum ipset_adt {
 	IPSET_ADT_MAX,
 	IPSET_CREATE = IPSET_ADT_MAX,
 	IPSET_CADT_MAX,
+};
+
+/* Sets are identified by an index in kernel space. Tweak with ip_set_id_t
+ * and IPSET_INVALID_ID if you want to increase the max number of sets.
+ */
+typedef __u16 ip_set_id_t;
+
+#define IPSET_INVALID_ID		65535
+
+enum ip_set_dim {
+	IPSET_DIM_ZERO = 0,
+	IPSET_DIM_ONE,
+	IPSET_DIM_TWO,
+	IPSET_DIM_THREE,
+	/* Max dimension in elements.
+	 * If changed, new revision of iptables match/target is required.
+	 */
+	IPSET_DIM_MAX = 6,
+};
+
+/* Option flags for kernel operations */
+enum ip_set_kopt {
+	IPSET_INV_MATCH = (1 << IPSET_DIM_ZERO),
+	IPSET_DIM_ONE_SRC = (1 << IPSET_DIM_ONE),
+	IPSET_DIM_TWO_SRC = (1 << IPSET_DIM_TWO),
+	IPSET_DIM_THREE_SRC = (1 << IPSET_DIM_THREE),
 };
 
 #endif /* __IP_SET_H */
