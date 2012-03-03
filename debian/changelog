@@ -1,3 +1,9 @@
+ipset (6.9-1+vyatta2+oxnard1) unstable; urgency=low
+
+  * new branch
+
+ -- Deepti Kulkarni <deepti@vyatta.com>  Sat, 03 Mar 2012 02:21:50 -0800
+
 ipset (6.9-1+vyatta2) unstable; urgency=low
 
   * Fix lookup of tcp port names
