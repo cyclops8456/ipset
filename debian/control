@@ -7,9 +7,9 @@ Standards-Version: 3.8.0
 
 Package: ipset
 Architecture: any
-Depends: iptables, ${shlibs:Depends}
+Depends: iptables, libmnl0, ${shlibs:Depends}
 Description: administration tool for kernel IP sets
- IP sets are a framework inside the Linux 2.4.x and 2.6.x kernel which can be
+ IP sets are a framework inside the Linux kernel which can be
  administered by the ipset(8) utility. Depending on the type, an IP set may
  store IPv4 addresses, TCP/UDP port numbers, or IPv4 addresses with MAC
  addresses in a way which ensures lightning speed when matching an entry
