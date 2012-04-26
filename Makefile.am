@@ -20,7 +20,7 @@ else
 V=0
 endif
 
-SUBDIRS		= lib src
+SUBDIRS		= include/libipset lib src
 
 modules_sparse:
 if WITH_KMOD
@@ -75,3 +75,5 @@ tidy: distclean modules_clean
 	find . -name '*~' -delete
 
 .PHONY: modules modules_instal modules_clean update_includes tests
+
+DISTCHECK_CONFIGURE_FLAGS = --with-kmod=no

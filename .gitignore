@@ -2,8 +2,9 @@
 *.la
 *.lo
 *.o
-.deps
-.libs
+*.pc
+.deps/
+.libs/
 Makefile
 Makefile.in
 
@@ -17,13 +18,9 @@ Module.symvers
 modules.order
 
 /aclocal.m4
-/autom4te.cache
-/compile
+/autom4te.cache/
+/build-aux/
 /config.*
 /configure
-/depcomp
-/install-sh
 /libtool
-/ltmain.sh
-/missing
 /stamp-h1

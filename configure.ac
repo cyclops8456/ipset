@@ -1,9 +1,10 @@
 dnl Boilerplate
-AC_INIT([ipset], [6.9.1], [kadlec@blackhole.kfki.hu])
+AC_INIT([ipset], [6.11], [kadlec@blackhole.kfki.hu])
+AC_CONFIG_AUX_DIR([build-aux])
 AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADER([config.h])
-AM_INIT_AUTOMAKE([foreign subdir-objects])
+AM_INIT_AUTOMAKE([foreign subdir-objects tar-pax])
 
 dnl Shortcut: Linux supported alone
 case "$host" in
@@ -160,5 +161,6 @@ fi
 dnl Checks for library functions.
 
 dnl Generate output
-AC_CONFIG_FILES([Makefile lib/Makefile src/Makefile])
+AC_CONFIG_FILES([Makefile include/libipset/Makefile
+	lib/Makefile lib/libipset.pc src/Makefile])
 AC_OUTPUT
