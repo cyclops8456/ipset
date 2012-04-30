@@ -1,3 +1,9 @@
+ipset (6.9-1+vyatta4) unstable; urgency=low
+
+  * Support hostnames and service names with dash
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Mon, 30 Apr 2012 16:05:40 -0700
+
 ipset (6.9-1+vyatta3) unstable; urgency=low
 
   * new branch
