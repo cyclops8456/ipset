@@ -1,3 +1,9 @@
+ipset (6.9-1+vyatta4+pacifica1) unstable; urgency=low
+
+  * new branch
+
+ -- John Southworth <john.southworth@vyatta.com>  Fri, 12 Oct 2012 18:42:15 -0700
+
 ipset (6.9-1+vyatta4) unstable; urgency=low
 
   * Support hostnames and service names with dash
