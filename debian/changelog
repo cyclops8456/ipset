@@ -1,3 +1,10 @@
+ipset (6.9-1+vyatta5+daisy2) unstable; urgency=low
+
+  * create daisy branch
+  * 6.9-1+vyatta5+daisy1
+
+ -- John Southworth <john.southworth@vyatta.com>  Sat, 13 Oct 2012 13:39:00 -0700
+
 ipset (6.9-1+vyatta5+daisy1) unstable; urgency=low
 
   * create daisy branch
