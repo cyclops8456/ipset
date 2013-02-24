@@ -24,7 +24,7 @@ clean:
 	dh_testroot
 	dh_clean 
 
-	$(MAKE) clean
+#	$(MAKE) clean
 
 install: build
 	dh install --before dh_auto_configure
