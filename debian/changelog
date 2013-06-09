@@ -1,3 +1,9 @@
+ipset (6.9-1+vyatta7) unstable; urgency=low
+
+  * Drop make clean step, as there is no such target in Makefile.
+
+ -- Sven-Thorsten Dietrich <sven@vyatta.com>  Sun, 09 Jun 2013 12:37:10 -0700
+
 ipset (6.9-1+vyatta6) unstable; urgency=low
 
   * fix tags
