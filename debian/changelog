@@ -1,3 +1,9 @@
+ipset (6.9-1+vyos2+lithium4) unstable; urgency=low
+
+  * ipset: update dh_gencontrol with new development build flag
+
+ -- Alex Harpin <development@landsofshadow.co.uk>  Sun, 14 Jun 2015 12:23:30 +0100
+ 
 ipset (6.9-1+vyos2+lithium3) unstable; urgency=low
 
   * Force release
