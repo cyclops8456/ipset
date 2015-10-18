@@ -1,5 +1,7 @@
-<<<<<<< HEAD
-=======
+6.10
+ - Invert the logic to include version.h in ip_set_core.c
+ - Suppress false compile-time warnings about uninitialized variable ip_to
+
 6.9.1
  - Fix compiling ipset as external kernel modules
 
@@ -67,7 +69,6 @@
  - SCTP, UDPLITE support to hash:*port* types added
  - Fix revision reporting got broken by the revision checking patch
 
->>>>>>> 0331a4ade2c13558ea171c90056eb8c3697d1880
 6.0
  - Reorganized kernel/ subdir
  - netfilter: ipset: fix linking with CONFIG_IPV6=n (Patrick McHardy)
@@ -144,19 +145,6 @@
 
 5.0
  - New main branch - ipset completely rewritten
-<<<<<<< HEAD
-
-4.4
-  - The ipporthash, ipportiphash and ipportnethash set types did not
-    work with mixed "src" and "dst" destination parameters of the
-    "set" and "SET" iptables match and target (reported by Dash Four)
-  - Errorneous semaphore handling in error path fixed
-    (reported by Jan Engelhardt, bugzilla id 668)
-
-4.3
-  - Kernel 2.6.35 support added
-=======
->>>>>>> 0331a4ade2c13558ea171c90056eb8c3697d1880
 
 4.2
   - nethash and ipportnethash types counted every entry twice
