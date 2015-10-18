@@ -5,6 +5,7 @@
  * published by the Free Software Foundation.
  */
 #include <assert.h>				/* assert */
+#include <endian.h>				/* htobe64 */
 #include <errno.h>				/* errno */
 #include <setjmp.h>				/* setjmp, longjmp */
 #include <stdio.h>				/* snprintf */
@@ -15,6 +16,7 @@
 #include <net/ethernet.h>			/* ETH_ALEN */
 #include <net/if.h>				/* IFNAMSIZ */
 
+#include <libipset/compat.h>			/* be64toh() */
 #include <libipset/debug.h>			/* D() */
 #include <libipset/data.h>			/* IPSET_OPT_* */
 #include <libipset/errcode.h>			/* ipset_errcode */
@@ -380,6 +382,10 @@ static const struct ipset_attr_policy create_attrs[] = {
 		.type = MNL_TYPE_U32,
 		.opt = IPSET_OPT_MAXELEM,
 	},
+	[IPSET_ATTR_MARKMASK] = {
+		.type = MNL_TYPE_U32,
+		.opt = IPSET_OPT_MARKMASK,
+	},
 	[IPSET_ATTR_NETMASK] = {
 		.type = MNL_TYPE_U8,
 		.opt = IPSET_OPT_NETMASK,
@@ -422,6 +428,10 @@ static const struct ipset_attr_policy adt_attrs[] = {
 	[IPSET_ATTR_CIDR] = {
 		.type = MNL_TYPE_U8,
 		.opt = IPSET_OPT_CIDR,
+	},
+	[IPSET_ATTR_MARK] = {
+		.type = MNL_TYPE_U32,
+		.opt = IPSET_OPT_MARK,
 	},
 	[IPSET_ATTR_PORT] = {
 		.type = MNL_TYPE_U16,
@@ -479,6 +489,31 @@ static const struct ipset_attr_policy adt_attrs[] = {
 		.opt = IPSET_OPT_IFACE,
 		.len  = IFNAMSIZ,
 	},
+	[IPSET_ATTR_PACKETS] = {
+		.type = MNL_TYPE_U64,
+		.opt = IPSET_OPT_PACKETS,
+	},
+	[IPSET_ATTR_BYTES] = {
+		.type = MNL_TYPE_U64,
+		.opt = IPSET_OPT_BYTES,
+	},
+	[IPSET_ATTR_COMMENT] = {
+		.type = MNL_TYPE_NUL_STRING,
+		.opt = IPSET_OPT_ADT_COMMENT,
+		.len  = IPSET_MAX_COMMENT_SIZE + 1,
+	},
+	[IPSET_ATTR_SKBMARK] = {
+		.type = MNL_TYPE_U64,
+		.opt = IPSET_OPT_SKBMARK,
+	},
+	[IPSET_ATTR_SKBPRIO] = {
+		.type = MNL_TYPE_U32,
+		.opt = IPSET_OPT_SKBPRIO,
+	},
+	[IPSET_ATTR_SKBQUEUE] = {
+		.type = MNL_TYPE_U16,
+		.opt = IPSET_OPT_SKBQUEUE,
+	},
 };
 
 static const struct ipset_attr_policy ipaddr_attrs[] = {
@@ -513,7 +548,7 @@ generic_data_attr_cb(const struct nlattr *attr, void *data,
 		return MNL_CB_ERROR;
 	}
 	if (policy[type].type == MNL_TYPE_NUL_STRING &&
-	    mnl_attr_get_payload_len(attr) > IPSET_MAXNAMELEN)
+	    mnl_attr_get_payload_len(attr) > policy[type].len)
 		return MNL_CB_ERROR;
 	tb[type] = attr;
 	return MNL_CB_OK;
@@ -550,6 +585,7 @@ attr2data(struct ipset_session *session, struct nlattr *nla[],
 	struct ipset_data *data = session->data;
 	const struct ipset_attr_policy *attr;
 	const void *d;
+	uint64_t v64;
 	uint32_t v32;
 	uint16_t v16;
 	int ret;
@@ -599,6 +635,11 @@ attr2data(struct ipset_session *session, struct nlattr *nla[],
 	} else if (nla[type]->nla_type & NLA_F_NET_BYTEORDER) {
 		D("netorder attr type %u", type);
 		switch (attr->type) {
+		case MNL_TYPE_U64: {
+			v64  = be64toh(*(const uint64_t *)d);
+			d = &v64;
+			break;
+		}
 		case MNL_TYPE_U32: {
 			v32  = ntohl(*(const uint32_t *)d);
 			d = &v32;
@@ -676,13 +717,7 @@ retry:
 			fmt, args);
 	va_end(args);
 
-	if (ret < 0) {
-		ipset_err(session,
-			 "Internal error at printing to output buffer");
-		longjmp(printf_failure, 1);
-	}
-
-	if (ret >= IPSET_OUTBUFLEN - len) {
+	if (ret < 0 || ret >= IPSET_OUTBUFLEN - len) {
 		/* Buffer was too small, push it out and retry */
 		D("print buffer and try again: %u", len);
 		if (loop++) {
@@ -710,13 +745,7 @@ retry:
 	ret = fn(session->outbuf + len, IPSET_OUTBUFLEN - len,
 		 session->data, opt, session->envopts);
 
-	if (ret < 0) {
-		ipset_err(session,
-			"Internal error at printing to output buffer");
-		longjmp(printf_failure, 1);
-	}
-
-	if (ret >= IPSET_OUTBUFLEN - len) {
+	if (ret < 0 || ret >= IPSET_OUTBUFLEN - len) {
 		/* Buffer was too small, push it out and retry */
 		D("print buffer and try again: %u", len);
 		if (loop++) {
@@ -738,7 +767,6 @@ list_adt(struct ipset_session *session, struct nlattr *nla[])
 	const struct ipset_data *data = session->data;
 	const struct ipset_type *type;
 	const struct ipset_arg *arg;
-	uint8_t family;
 	int i, found = 0;
 
 	D("enter");
@@ -750,7 +778,6 @@ list_adt(struct ipset_session *session, struct nlattr *nla[])
 
 	if (type == NULL)
 		return MNL_CB_ERROR;
-	family = ipset_data_family(data);
 
 	for (i = IPSET_ATTR_UNSPEC + 1; i <= IPSET_ATTR_ADT_MAX; i++)
 		if (nla[i]) {
@@ -766,7 +793,7 @@ list_adt(struct ipset_session *session, struct nlattr *nla[])
 		safe_snprintf(session, "add %s ", ipset_data_setname(data));
 		break;
 	case IPSET_LIST_XML:
-		safe_snprintf(session, "    <member>");
+		safe_snprintf(session, "<member><elem>");
 		break;
 	case IPSET_LIST_PLAIN:
 	default:
@@ -774,30 +801,33 @@ list_adt(struct ipset_session *session, struct nlattr *nla[])
 	}
 
 	safe_dprintf(session, ipset_print_elem, IPSET_OPT_ELEM);
+	if (session->mode == IPSET_LIST_XML)
+		safe_snprintf(session, "</elem>");
 
-	for (arg = type->args[IPSET_ADD]; arg != NULL && arg->print; arg++) {
-		if (!ipset_data_test(data, arg->opt))
+	for (arg = type->args[IPSET_ADD]; arg != NULL && arg->opt; arg++) {
+		D("print arg opt %u %s", arg->opt,
+		   ipset_data_test(data, arg->opt) ? "(yes)" : "(missing)");
+		if (!(arg->print && ipset_data_test(data, arg->opt)))
 			continue;
 		switch (session->mode) {
 		case IPSET_LIST_SAVE:
 		case IPSET_LIST_PLAIN:
-			safe_snprintf(session, " %s ", arg->name[0]);
-			if (arg->has_arg == IPSET_NO_ARG)
+			if (arg->has_arg == IPSET_NO_ARG) {
+				safe_snprintf(session, " %s", arg->name[0]);
 				break;
+			}
+			safe_snprintf(session, " %s ", arg->name[0]);
 			safe_dprintf(session, arg->print, arg->opt);
 			break;
 		case IPSET_LIST_XML:
 			if (arg->has_arg == IPSET_NO_ARG) {
 				safe_snprintf(session,
-					      "    <%s/>\n",
-					      arg->name[0]);
+					      "<%s/>", arg->name[0]);
 				break;
 			}
-			safe_snprintf(session, "    <%s>",
-				      arg->name[0]);
+			safe_snprintf(session, "<%s>", arg->name[0]);
 			safe_dprintf(session, arg->print, arg->opt);
-			safe_snprintf(session, "</%s>\n",
-				      arg->name[0]);
+			safe_snprintf(session, "</%s>", arg->name[0]);
 			break;
 		default:
 			break;
@@ -838,24 +868,25 @@ list_create(struct ipset_session *session, struct nlattr *nla[])
 
 	switch (session->mode) {
 	case IPSET_LIST_SAVE:
-		safe_snprintf(session, "create %s %s ",
+		safe_snprintf(session, "create %s %s",
 			      ipset_data_setname(data),
 			      type->name);
 		break;
 	case IPSET_LIST_PLAIN:
 		safe_snprintf(session, "%sName: %s\n"
-			      "Type: %s\nHeader: ",
+			      "Type: %s\nRevision: %u\nHeader:",
 			      session->printed_set ? "\n" : "",
 			      ipset_data_setname(data),
-			      type->name);
+			      type->name, type->revision);
 		break;
 	case IPSET_LIST_XML:
 		safe_snprintf(session,
 			      "<ipset name=\"%s\">\n"
-			      "  <type>%s</type>\n"
-			      "  <header>\n",
+			      "<type>%s</type>\n"
+			      "<revision>%u</revision>\n"
+			      "<header>",
 			      ipset_data_setname(data),
-			      type->name);
+			      type->name, type->revision);
 		break;
 	default:
 		break;
@@ -870,24 +901,22 @@ list_create(struct ipset_session *session, struct nlattr *nla[])
 		switch (session->mode) {
 		case IPSET_LIST_SAVE:
 		case IPSET_LIST_PLAIN:
-			safe_snprintf(session, "%s ", arg->name[0]);
-			if (arg->has_arg == IPSET_NO_ARG)
+			if (arg->has_arg == IPSET_NO_ARG) {
+				safe_snprintf(session, " %s", arg->name[0]);
 				break;
+			}
+			safe_snprintf(session, " %s ", arg->name[0]);
 			safe_dprintf(session, arg->print, arg->opt);
-			safe_snprintf(session, " ");
 			break;
 		case IPSET_LIST_XML:
 			if (arg->has_arg == IPSET_NO_ARG) {
 				safe_snprintf(session,
-					      "    <%s/>\n",
-					      arg->name[0]);
+					      "<%s/>", arg->name[0]);
 				break;
 			}
-			safe_snprintf(session, "    <%s>",
-				      arg->name[0]);
+			safe_snprintf(session, "<%s>", arg->name[0]);
 			safe_dprintf(session, arg->print, arg->opt);
-			safe_snprintf(session, "</%s>\n",
-				      arg->name[0]);
+			safe_snprintf(session, "</%s>", arg->name[0]);
 			break;
 		default:
 			break;
@@ -902,19 +931,29 @@ list_create(struct ipset_session *session, struct nlattr *nla[])
 		safe_dprintf(session, ipset_print_number, IPSET_OPT_MEMSIZE);
 		safe_snprintf(session, "\nReferences: ");
 		safe_dprintf(session, ipset_print_number, IPSET_OPT_REFERENCES);
+		if (ipset_data_test(data, IPSET_OPT_ELEMENTS)) {
+			safe_snprintf(session, "\nNumber of entries: ");
+			safe_dprintf(session, ipset_print_number, IPSET_OPT_ELEMENTS);
+		}
 		safe_snprintf(session,
 			session->envopts & IPSET_ENV_LIST_HEADER ?
 			"\n" : "\nMembers:\n");
 		break;
 	case IPSET_LIST_XML:
-		safe_snprintf(session, "    <memsize>");
+		safe_snprintf(session, "\n<memsize>");
 		safe_dprintf(session, ipset_print_number, IPSET_OPT_MEMSIZE);
-		safe_snprintf(session, "</memsize>\n    <references>");
+		safe_snprintf(session, "</memsize>\n<references>");
 		safe_dprintf(session, ipset_print_number, IPSET_OPT_REFERENCES);
+		safe_snprintf(session, "</references>\n");
+		if (ipset_data_test(data, IPSET_OPT_ELEMENTS)) {
+			safe_snprintf(session, "<numentries>");
+			safe_dprintf(session, ipset_print_number, IPSET_OPT_ELEMENTS);
+			safe_snprintf(session, "</numentries>\n");
+		}
 		safe_snprintf(session,
 			session->envopts & IPSET_ENV_LIST_HEADER ?
-			"</references>\n  </header>\n" :
-			"</references>\n  </header>\n  <members>\n");
+			"</header>\n" :
+			"</header>\n<members>\n");
 		break;
 	default:
 		break;
@@ -925,7 +964,7 @@ list_create(struct ipset_session *session, struct nlattr *nla[])
 }
 
 static int
-print_set_done(struct ipset_session *session)
+print_set_done(struct ipset_session *session, bool callback_done)
 {
 	D("called for %s", session->saved_setname[0] == '\0'
 		? "NONE" : session->saved_setname);
@@ -939,11 +978,13 @@ print_set_done(struct ipset_session *session)
 			break;
 		}
 		if (session->saved_setname[0] != '\0')
-			safe_snprintf(session, "  </members>\n</ipset>\n");
+			safe_snprintf(session, "</members>\n</ipset>\n");
 		break;
 	default:
 		break;
 	}
+	if (callback_done && session->mode == IPSET_LIST_XML)
+		safe_snprintf(session, "</ipsets>\n");
 	return call_outfn(session) ? MNL_CB_ERROR : MNL_CB_STOP;
 }
 
@@ -989,7 +1030,7 @@ callback_list(struct ipset_session *session, struct nlattr *nla[],
 
 		/* Close previous set printing */
 		if (session->saved_setname[0] != '\0')
-			print_set_done(session);
+			print_set_done(session, false);
 	}
 
 	if (nla[IPSET_ATTR_DATA] != NULL) {
@@ -1008,8 +1049,7 @@ callback_list(struct ipset_session *session, struct nlattr *nla[],
 		ipset_data_flags_unset(data, IPSET_CREATE_FLAGS);
 		D("nla typename %s",
 		  (char *) mnl_attr_get_payload(nla[IPSET_ATTR_TYPENAME]));
-		D("nla typename %s",
-		  (char *) mnl_attr_get_payload(nla[IPSET_ATTR_TYPENAME]));
+
 		ATTR2DATA(session, nla, IPSET_ATTR_FAMILY, cmd_attrs);
 		ATTR2DATA(session, nla, IPSET_ATTR_TYPENAME, cmd_attrs);
 		ATTR2DATA(session, nla, IPSET_ATTR_REVISION, cmd_attrs);
@@ -1217,7 +1257,7 @@ callback_data(const struct nlmsghdr *nlh, void *data)
 		ret = callback_list(session, nla, cmd);
 		D("flag multi: %u", nlh->nlmsg_flags & NLM_F_MULTI);
 		if (ret >= MNL_CB_STOP && !(nlh->nlmsg_flags & NLM_F_MULTI))
-			ret = print_set_done(session);
+			ret = print_set_done(session, false);
 		break;
 	case IPSET_CMD_PROTOCOL:
 		if (!session->version_checked)
@@ -1245,7 +1285,7 @@ callback_done(const struct nlmsghdr *nlh UNUSED, void *data)
 
 	D(" called");
 	if (session->cmd == IPSET_CMD_LIST || session->cmd == IPSET_CMD_SAVE)
-		return print_set_done(session);
+		return print_set_done(session, true);
 
 	FAILURE("Invalid message received in non LIST or SAVE state.");
 }
@@ -1346,7 +1386,7 @@ callback_error(const struct nlmsghdr *nlh, void *cbdata)
 		case IPSET_CMD_LIST:
 		case IPSET_CMD_SAVE:
 			/* No set in kernel */
-			print_set_done(session);
+			print_set_done(session, true);
 			break;
 		default:
 			FAILURE("ACK message received to command %s[%u], "
@@ -1414,6 +1454,9 @@ attr_len(const struct ipset_attr_policy *attr, uint8_t family, uint16_t *flags)
 		*flags = NLA_F_NET_BYTEORDER;
 		return family == NFPROTO_IPV4 ? sizeof(uint32_t)
 					 : sizeof(struct in6_addr);
+	case MNL_TYPE_U64:
+		*flags = NLA_F_NET_BYTEORDER;
+		return sizeof(uint64_t);
 	case MNL_TYPE_U32:
 		*flags = NLA_F_NET_BYTEORDER;
 		return sizeof(uint32_t);
@@ -1466,21 +1509,27 @@ rawdata2attr(struct ipset_session *session, struct nlmsghdr *nlh,
 		return 1;
 
 	switch (attr->type) {
-	case MNL_TYPE_NUL_STRING:
-		alen = strlen((const char *)d) + 1;
-		break;
+	case MNL_TYPE_U64: {
+		uint64_t value = htobe64(*(const uint64_t *)d);
+
+		mnl_attr_put(nlh, type | flags, alen, &value);
+		return 0;
+	}
 	case MNL_TYPE_U32: {
 		uint32_t value = htonl(*(const uint32_t *)d);
 
-		d = &value;
-		break;
+		mnl_attr_put(nlh, type | flags, alen, &value);
+		return 0;
 	}
 	case MNL_TYPE_U16: {
 		uint16_t value = htons(*(const uint16_t *)d);
 
-		d = &value;
-		break;
+		mnl_attr_put(nlh, type | flags, alen, &value);
+		return 0;
 	}
+	case MNL_TYPE_NUL_STRING:
+		alen = strlen((const char *)d) + 1;
+		break;
 	default:
 		break;
 	}
@@ -1508,7 +1557,8 @@ data2attr(struct ipset_session *session, struct nlmsghdr *nlh,
 	data2attr(session, nlh, data, type, family, attrs)
 
 #define ADDATTR_SETNAME(session, nlh, data)				\
-	data2attr(session, nlh, data, IPSET_ATTR_SETNAME, NFPROTO_IPV4, cmd_attrs)
+	data2attr(session, nlh, data, IPSET_ATTR_SETNAME, NFPROTO_IPV4,	\
+		  cmd_attrs)
 
 #define ADDATTR_IF(session, nlh, data, type, family, attrs)		\
 	ipset_data_test(data, attrs[type].opt) ?			\
@@ -1674,8 +1724,8 @@ build_msg(struct ipset_session *session, bool aggregate)
 			ADDATTR_SETNAME(session, nlh, data);
 		if (flags && session->mode != IPSET_LIST_SAVE) {
 			ipset_data_set(data, IPSET_OPT_FLAGS, &flags);
-			ADDATTR(session, nlh, data, IPSET_ATTR_FLAGS, NFPROTO_IPV4,
-				cmd_attrs);
+			ADDATTR(session, nlh, data, IPSET_ATTR_FLAGS,
+				NFPROTO_IPV4, cmd_attrs);
 		}
 		break;
 	}
@@ -1904,6 +1954,10 @@ ipset_cmd(struct ipset_session *session, enum ipset_cmd cmd, uint32_t lineno)
 		if (session->mode == IPSET_LIST_NONE)
 			session->mode = IPSET_LIST_SAVE;
 	}
+	/* Start the root element in XML mode */
+	if ((cmd == IPSET_CMD_LIST || cmd == IPSET_CMD_SAVE) &&
+	    session->mode == IPSET_LIST_XML)
+		safe_snprintf(session, "<ipsets>\n");
 
 	D("next: build_msg");
 	/* Build new message or append buffered commands */
@@ -1940,6 +1994,19 @@ cleanup:
 	D("reset data");
 	ipset_data_reset(data);
 	return ret;
+}
+
+/**
+ * ipset_session_outfn - set session output printing function
+ *
+ * Set the session printing function.
+ *
+ */
+int
+ipset_session_outfn(struct ipset_session *session, ipset_outfn outfn)
+{
+	session->outfn = outfn ? outfn : printf;
+	return 0;
 }
 
 /**

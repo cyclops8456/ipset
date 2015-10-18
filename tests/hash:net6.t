@@ -33,13 +33,13 @@
 # Try to add IP address
 0 ipset add test 3:0:0::1
 # List set
-0 ipset list test | sed 's/timeout ./timeout x/' > .foo0 && ./sort.sh .foo0
+0 ipset list test | grep -v Revision: | sed 's/timeout ./timeout x/' > .foo0 && ./sort.sh .foo0
 # Check listing
 0 diff -u -I 'Size in memory.*' .foo hash:net6.t.list0
 # Sleep 5s so that element can time out
 0 sleep 5
 # IP: List set
-0 ipset -L test 2>/dev/null > .foo0 && ./sort.sh .foo0
+0 ipset -L test 2>/dev/null | grep -v Revision: > .foo0 && ./sort.sh .foo0
 # IP: Check listing
 0 diff -u -I 'Size in memory.*' .foo hash:net6.t.list1
 # Flush test set
@@ -51,7 +51,7 @@
 # Add a non-matching IP address entry
 0 ipset -A test 1:1:1::1 nomatch
 # Add an overlapping matching small net
-0 ipset -A test 1:1:1::/124 
+0 ipset -A test 1:1:1::/124
 # Add an overlapping non-matching larger net
 0 ipset -A test 1:1:1::/120 nomatch
 # Add an even larger matching net
@@ -84,4 +84,56 @@
 0 ipset -T test 1:1:1::F
 # Delete test set
 0 ipset destroy test
+# Timeout: Check that resizing keeps timeout values
+0 ./resizet.sh -6 net
+# Nomatch: Check that resizing keeps the nomatch flag
+0 ./resizen.sh -6 net
+# Counters: create set
+0 ipset n test hash:net -6 counters
+# Counters: add element with packet, byte counters
+0 ipset a test 2:0:0::1/64 packets 5 bytes 3456
+# Counters: check element
+0 ipset t test 2:0:0::1/64
+# Counters: check counters
+0 ./check_counters test 2:: 5 3456
+# Counters: delete element
+0 ipset d test 2:0:0::1/64
+# Counters: test deleted element
+1 ipset t test 2:0:0::1/64
+# Counters: add element with packet, byte counters
+0 ipset a test 2:0:0::20/54 packets 12 bytes 9876
+# Counters: check counters
+0 ./check_counters test 2:: 12 9876
+# Counters: update counters
+0 ipset -! a test 2:0:0::20/54 packets 13 bytes 12479
+# Counters: check counters
+0 ./check_counters test 2:: 13 12479
+# Counters: destroy set
+0 ipset x test
+# Counters and timeout: create set
+0 ipset n test hash:net -6 counters timeout 600
+# Counters and timeout: add element with packet, byte counters
+0 ipset a test 2:0:0::1/64 packets 5 bytes 3456
+# Counters and timeout: check element
+0 ipset t test 2:0:0::1/64
+# Counters and timeout: check counters
+0 ./check_extensions test 2:: 600 5 3456
+# Counters and timeout: delete element
+0 ipset d test 2:0:0::1/64
+# Counters and timeout: test deleted element
+1 ipset t test 2:0:0::1/64
+# Counters and timeout: add element with packet, byte counters
+0 ipset a test 2:0:0::20/54 packets 12 bytes 9876
+# Counters and timeout: check counters
+0 ./check_extensions test 2:: 600 12 9876
+# Counters and timeout: update counters
+0 ipset -! a test 2:0:0::20/54 packets 13 bytes 12479
+# Counters and timeout: check counters
+0 ./check_extensions test 2:: 600 13 12479
+# Counters and timeout: update timeout
+0 ipset -! a test 2:0:0::20/54 timeout 700
+# Counters and timeout: check counters
+0 ./check_extensions test 2:: 700 13 12479
+# Counters and timeout: destroy set
+0 ipset x test
 # eof

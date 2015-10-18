@@ -41,13 +41,13 @@
 # Test ICMP by name
 0 ipset test test 2.0.0.255,icmp:host-prohibited
 # List set
-0 ipset list test | sed 's/timeout ./timeout x/' > .foo0 && ./sort.sh .foo0
+0 ipset list test | grep -v Revision: | sed 's/timeout ./timeout x/' > .foo0 && ./sort.sh .foo0
 # Check listing
 0 diff -u -I 'Size in memory.*' .foo hash:net,port.t.list0
 # Sleep 5s so that element can time out
 0 sleep 5
 # IP: List set
-0 ipset -L test 2>/dev/null > .foo0 && ./sort.sh .foo0
+0 ipset -L test 2>/dev/null | grep -v Revision: > .foo0 && ./sort.sh .foo0
 # IP: Check listing
 0 diff -u -I 'Size in memory.*' .foo hash:net,port.t.list1
 # Flush test set
@@ -81,7 +81,7 @@
 # Add a non-matching IP address entry
 0 ipset -A test 1.1.1.1,80 nomatch
 # Add an overlapping matching small net
-0 ipset -A test 1.1.1.0/30,80 
+0 ipset -A test 1.1.1.0/30,80
 # Add an overlapping non-matching larger net
 0 ipset -A test 1.1.1.0/28,80 nomatch
 # Add an even larger matching net
@@ -114,4 +114,58 @@
 0 ipset -T test 1.1.1.3,80
 # Delete test set
 0 ipset destroy test
+# Check all possible CIDR values
+0 ./cidr.sh net,port
+# Timeout: Check that resizing keeps timeout values
+0 ./resizet.sh -4 netport
+# Nomatch: Check that resizing keeps the nomatch flag
+0 ./resizen.sh -4 netport
+# Counters: create set
+0 ipset n test hash:net,port counters
+# Counters: add element with packet, byte counters
+0 ipset a test 2.0.0.1/24,80 packets 5 bytes 3456
+# Counters: check element
+0 ipset t test 2.0.0.1/24,80
+# Counters: check counters
+0 ./check_counters test 2.0.0.0/24 5 3456
+# Counters: delete element
+0 ipset d test 2.0.0.1/24,80
+# Counters: test deleted element
+1 ipset t test 2.0.0.1/24,80
+# Counters: add element with packet, byte counters
+0 ipset a test 2.0.0.20/25,453 packets 12 bytes 9876
+# Counters: check counters
+0 ./check_counters test 2.0.0.0/25 12 9876
+# Counters: update counters
+0 ipset -! a test 2.0.0.20/25,453 packets 13 bytes 12479
+# Counters: check counters
+0 ./check_counters test 2.0.0.0/25 13 12479
+# Counters: destroy set
+0 ipset x test
+# Counters and timeout: create set
+0 ipset n test hash:net,port counters timeout 600
+# Counters and timeout: add element with packet, byte counters
+0 ipset a test 2.0.0.1/24,80 packets 5 bytes 3456
+# Counters and timeout: check element
+0 ipset t test 2.0.0.1/24,80
+# Counters and timeout: check counters
+0 ./check_extensions test 2.0.0.0/24 600 5 3456
+# Counters and timeout: delete element
+0 ipset d test 2.0.0.1/24,80
+# Counters and timeout: test deleted element
+1 ipset t test 2.0.0.1/24,80
+# Counters and timeout: add element with packet, byte counters
+0 ipset a test 2.0.0.20/25,453 packets 12 bytes 9876
+# Counters and timeout: check counters
+0 ./check_extensions test 2.0.0.0/25 600 12 9876
+# Counters and timeout: update counters
+0 ipset -! a test 2.0.0.20/25,453 packets 13 bytes 12479
+# Counters and timeout: check counters
+0 ./check_extensions test 2.0.0.0/25 600 13 12479
+# Counters and timeout: update timeout
+0 ipset -! a test 2.0.0.20/25,453 timeout 700
+# Counters and timeout: check counters
+0 ./check_extensions test 2.0.0.0/25 700 13 12479
+# Counters and timeout: destroy set
+0 ipset x test
 # eof

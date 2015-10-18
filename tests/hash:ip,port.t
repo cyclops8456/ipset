@@ -27,13 +27,13 @@
 # Try to add value after second random value
 0 ipset add test 2.1.0.1,128
 # List set
-0 ipset list test | sed 's/timeout ./timeout x/' > .foo0 && ./sort.sh .foo0
+0 ipset list test | grep -v Revision: | sed 's/timeout ./timeout x/' > .foo0 && ./sort.sh .foo0
 # Check listing
 0 diff -u -I 'Size in memory.*' .foo hash:ip,port.t.list0
 # Sleep 5s so that elements can time out
 0 sleep 5
 # List set
-0 ipset list test > .foo0 && ./sort.sh .foo0
+0 ipset list test | grep -v Revision: > .foo0 && ./sort.sh .foo0
 # Check listing
 0 diff -u -I 'Size in memory.*' .foo hash:ip,port.t.list1
 # Flush test set
@@ -69,7 +69,7 @@
 # Delete element with sctp
 0 ipset del test 2.0.0.1,sctp:80
 # List set
-0 ipset list test > .foo0 && ./sort.sh .foo0
+0 ipset list test | grep -v Revision: > .foo0 && ./sort.sh .foo0
 # Check listing
 0 diff -u -I 'Size in memory.*' .foo hash:ip,port.t.list2
 # Delete set
@@ -80,6 +80,90 @@
 0 ipset add test 10.0.0.0-10.0.3.255,tcp:80-82
 # Check that correct number of elements are added
 0 n=`ipset list test|grep '^10.0'|wc -l` && test $n -eq 3072
+# Flush set
+0 ipset flush test
+# Add an single element
+0 ipset add test 10.0.0.1,tcp:80
+# Check number of elements
+0 n=`ipset save test|wc -l` && test $n -eq 2
+# Delete the single element
+0 ipset del test 10.0.0.1,tcp:80
+# Check number of elements
+0 n=`ipset save test|wc -l` && test $n -eq 1
+# Add an IP range
+0 ipset add test 10.0.0.1-10.0.0.10,tcp:80
+# Check number of elements
+0 n=`ipset save test|wc -l` && test $n -eq 11
+# Delete the IP range
+0 ipset del test 10.0.0.1-10.0.0.10,tcp:80
+# Check number of elements
+0 n=`ipset save test|wc -l` && test $n -eq 1
+# Add a port range
+0 ipset add test 10.0.0.1,tcp:80-89
+# Check number of elements
+0 n=`ipset save test|wc -l` && test $n -eq 11
+# Delete the port range
+0 ipset del test 10.0.0.1,tcp:80-89
+# Check number of elements
+0 n=`ipset save test|wc -l` && test $n -eq 1
+# Add an IP and port range
+0 ipset add test 10.0.0.1-10.0.0.10,tcp:80-89
+# Check number of elements
+0 n=`ipset save test|wc -l` && test $n -eq 101
+# Delete the IP and port range
+0 ipset del test 10.0.0.1-10.0.0.10,tcp:80-89
+# Check number of elements
+0 n=`ipset save test|wc -l` && test $n -eq 1
 # Destroy set
 0 ipset -X test
+# Timeout: Check that resizing keeps timeout values
+0 ./resizet.sh -4 ipport
+# Counters: create set
+0 ipset n test hash:ip,port counters
+# Counters: add element with packet, byte counters
+0 ipset a test 2.0.0.1,80 packets 5 bytes 3456
+# Counters: check element
+0 ipset t test 2.0.0.1,80
+# Counters: check counters
+0 ./check_counters test 2.0.0.1 5 3456
+# Counters: delete element
+0 ipset d test 2.0.0.1,80
+# Counters: test deleted element
+1 ipset t test 2.0.0.1,80
+# Counters: add element with packet, byte counters
+0 ipset a test 2.0.0.20,453 packets 12 bytes 9876
+# Counters: check counters
+0 ./check_counters test 2.0.0.20 12 9876
+# Counters: update counters
+0 ipset -! a test 2.0.0.20,453 packets 13 bytes 12479
+# Counters: check counters
+0 ./check_counters test 2.0.0.20 13 12479
+# Counters: destroy set
+0 ipset x test
+# Counters and timeout: create set
+0 ipset n test hash:ip,port counters timeout 600
+# Counters and timeout: add element with packet, byte counters
+0 ipset a test 2.0.0.1,80 packets 5 bytes 3456
+# Counters and timeout: check element
+0 ipset t test 2.0.0.1,80
+# Counters and timeout: check counters
+0 ./check_extensions test 2.0.0.1 600 5 3456
+# Counters and timeout: delete element
+0 ipset d test 2.0.0.1,80
+# Counters and timeout: test deleted element
+1 ipset t test 2.0.0.1,80
+# Counters and timeout: add element with packet, byte counters
+0 ipset a test 2.0.0.20,453 packets 12 bytes 9876
+# Counters and timeout: check counters
+0 ./check_extensions test 2.0.0.20 600 12 9876
+# Counters and timeout: update counters
+0 ipset -! a test 2.0.0.20,453 packets 13 bytes 12479
+# Counters and timeout: check counters
+0 ./check_extensions test 2.0.0.20 600 13 12479
+# Counters and timeout: update timeout
+0 ipset -! a test 2.0.0.20,453 timeout 700
+# Counters and timeout: check counters
+0 ./check_extensions test 2.0.0.20 700 13 12479
+# Counters and timeout: destroy set
+0 ipset x test
 # eof

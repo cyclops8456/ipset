@@ -1,14 +1,20 @@
 dnl Boilerplate
-AC_INIT([ipset], [6.11], [kadlec@blackhole.kfki.hu])
+AC_INIT([ipset], [6.26], [kadlec@blackhole.kfki.hu])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADER([config.h])
 AM_INIT_AUTOMAKE([foreign subdir-objects tar-pax])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+
+AC_ENABLE_STATIC
+LT_INIT([dlopen])
+LT_CONFIG_LTDL_DIR([libltdl])
+LTDL_INIT([nonrecursive])
 
 dnl Shortcut: Linux supported alone
 case "$host" in
-*-*-linux*) ;;
+*-*-linux* | *-*-uclinux*) ;;
 *) AC_MSG_ERROR([Linux systems supported exclusively!]);;
 esac
 
@@ -61,8 +67,10 @@ then
 fi
 
 AC_PROG_GREP
+AC_PROG_AWK
 
-if test "X`$GREP 'NFNL_SUBSYS_IPSET' $ksourcedir/include/linux/netfilter/nfnetlink.h`" = "X"
+if ! $GREP -q "NFNL_SUBSYS_IPSET" "$ksourcedir/include/linux/netfilter/nfnetlink.h" && \
+   ! $GREP -q "NFNL_SUBSYS_IPSET" "$ksourcedir/include/uapi/linux/netfilter/nfnetlink.h";
 then
 	AC_MSG_ERROR([The kernel source directory $ksourcedir is not patched with netlink.patch to support ipset])
 fi
@@ -86,19 +94,50 @@ AC_ARG_ENABLE([verbose],
 	       *) AC_MSG_ERROR([bad value ${enableval} for --enable-verbose]) ;;
 	       esac], [enable_verbose=no])
 	      
-AM_CONDITIONAL([ENABLE_VERBOSE], [test "x$enable_verbose" = xyes])
-
-dnl Enable debugging
 AC_ARG_ENABLE([debug],
-	      AS_HELP_STRING([--enable-debug],
-	                     [Enable compiling with debug support.]),
-	      [case "${enableval}" in
-	       yes)	enable_verbose=yes ;;
-	       no)	enable_verbose=no ;;
-	       *) AC_MSG_ERROR([bad value ${enableval} for --enable-debug]) ;;
-	       esac], [enable_debug=no])
-	      
+	AS_HELP_STRING([--enable-debug], [enable debug messages @<:@default=disabled@:>@]),
+	[], [enable_debug=no])
+AS_IF([test "x$enable_debug" = "xyes"], [
+	AC_DEFINE(ENABLE_DEBUG, [1], [Debug messages.])
+])
 AM_CONDITIONAL([ENABLE_DEBUG], [test "x$enable_debug" = xyes])
+
+dnl Enable type modules
+AC_ARG_ENABLE([settype_modules],
+	          AS_HELP_STRING([--enable-settype-modules],
+	          [Enable set type modules support]),
+	          [enable_settype_modules="$enableval"],
+	          [enable_settype_modules="no"])
+
+AC_ARG_WITH([settype_modules_list],
+	        AS_HELP_STRING([--with-settype-modules-list="mod1 mod2 ..."],
+	                       [List of dynamic loading modules, ignored if settype-modules is disabled. It could be "all" to build all available settypes as modules]),
+	                       [SETTYPE_MODLIST_RAW="$withval";])
+
+SETTYPE_MODLIST=
+if test "x$enable_settype_modules" = "xyes"; then
+	for mod in $SETTYPE_MODLIST_RAW; do
+		if echo $mod | grep "all"; then
+			m="${mod}"
+		else
+			if echo $mod | grep "ipset_"; then
+				m="${mod}.c"
+			else
+				m="ipset_${mod}.c"
+			fi
+		fi
+
+		SETTYPE_MODLIST="${SETTYPE_MODLIST} $m"
+	done
+
+	AC_MSG_RESULT([checking for configuration with dynamic loading modules... $SETTYPE_MODLIST_RAW])
+fi
+AC_SUBST(SETTYPE_MODLIST)
+
+AM_CONDITIONAL([ENABLE_SETTYPE_MODULES], [test "x$enable_settype_modules" = xyes])
+
+AM_CONDITIONAL([ENABLE_STATIC], [test "x$enable_static" = xyes])
+AM_CONDITIONAL([ENABLE_SHARED], [test "x$enable_shared" = xyes])
 
 dnl Checks for programs
 : ${CFLAGS=""}
@@ -125,11 +164,284 @@ AC_CHECK_TYPES([union nf_inet_addr],,,[#include <linux/types.h>
 #include <netinet/in.h>
 #include <linux/netfilter.h>])
 
-dnl Checks for  compiler characteristics.
+dnl Checks for functions
+AC_CHECK_FUNCS(gethostbyname2)
+
+if test "$BUILDKMOD" == "yes"
+then
+dnl Check kernel incompatibilities... Ugly like hell
+AC_MSG_CHECKING([kernel source for struct xt_action_param])
+if test -f $ksourcedir/include/linux/netfilter/x_tables.h && \
+   $GREP -q 'struct xt_action_param' $ksourcedir/include/linux/netfilter/x_tables.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_STRUCT_XT_ACTION_PARAM, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_STRUCT_XT_ACTION_PARAM, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for vzalloc])
+if test -f $ksourcedir/include/linux/vmalloc.h && \
+   $GREP -q 'vzalloc' $ksourcedir/include/linux/vmalloc.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_VZALLOC, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_VZALLOC, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for ether_addr_equal])
+if test -f $ksourcedir/include/linux/etherdevice.h && \
+   $GREP -q 'ether_addr_equal' $ksourcedir/include/linux/etherdevice.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_ETHER_ADDR_EQUAL, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_ETHER_ADDR_EQUAL, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for nla_put_be16])
+if test -f $ksourcedir/include/net/netlink.h && \
+   $GREP -q 'nla_put_be16' $ksourcedir/include/net/netlink.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_NLA_PUT_BE16, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_NLA_PUT_BE16, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for nla_put_be64])
+if test -f $ksourcedir/include/net/netlink.h && \
+   $GREP -q 'nla_put_be64' $ksourcedir/include/net/netlink.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_NLA_PUT_BE64, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_NLA_PUT_BE64, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for portid in nl_info])
+if test -f $ksourcedir/include/linux/netlink.h && \
+   $AWK '/^struct netlink_skb_parms/ {for(i=1; i<=5; i++) {getline; print}}' $ksourcedir/include/linux/netlink.h | $GREP -q 'portid;'; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_NL_INFO_PORTID, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_NL_INFO_PORTID, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for netlink_dump_start args])
+if test -f $ksourcedir/include/linux/netlink.h && \
+   $AWK '/netlink_dump_start/ {for(i=1; i<=4; i++) {getline; print}}' $ksourcedir/include/linux/netlink.h | $GREP -q 'done.*;'; then
+	AC_MSG_RESULT(5 args)
+	AC_SUBST(HAVE_NETLINK_DUMP_START_ARGS, 5)
+elif test -f $ksourcedir/include/linux/netlink.h && \
+   $AWK '/netlink_dump_start/ {for(i=1; i<=4; i++) {getline; print}}' $ksourcedir/include/linux/netlink.h | $GREP -q 'min_dump_alloc.*;'; then
+	AC_MSG_RESULT(6 args)
+	AC_SUBST(HAVE_NETLINK_DUMP_START_ARGS, 6)
+else
+	AC_MSG_RESULT(4 args)
+	AC_SUBST(HAVE_NETLINK_DUMP_START_ARGS, 4)
+fi
+
+AC_MSG_CHECKING([kernel source for ns_capable])
+if test -f $ksourcedir/include/linux/capability.h && \
+   $GREP -q 'ns_capable' $ksourcedir/include/linux/capability.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_NS_CAPABLE, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_NS_CAPABLE, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for nfnl_lock per subsys])
+if test -f $ksourcedir/include/linux/netfilter/nfnetlink.h && \
+   $GREP -q 'nfnl_lock.* subsys_id' $ksourcedir/include/linux/netfilter/nfnetlink.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_NFNL_LOCK_SUBSYS, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_NFNL_LOCK_SUBSYS, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for export.h])
+if test -f $ksourcedir/include/linux/export.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_EXPORT_H, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_EXPORT_H, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for ipv6_skip_exthdr args])
+if test -f $ksourcedir/include/net/ipv6.h && \
+   $AWK '/ipv6_skip_exthdr/ {getline; print}' $ksourcedir/include/net/ipv6.h | $GREP -q 'frag_offp'; then
+	AC_MSG_RESULT(4 args)
+	AC_SUBST(HAVE_IPV6_SKIP_EXTHDR_ARGS, 4)
+else
+	AC_MSG_RESULT(3 args)
+	AC_SUBST(HAVE_IPV6_SKIP_EXTHDR_ARGS, 3)
+fi
+
+AC_MSG_CHECKING([kernel source for bool checkentry function prototype])
+if test -f $ksourcedir/include/linux/netfilter/x_tables.h && \
+   $GREP -q 'bool .\*checkentry.' $ksourcedir/include/linux/netfilter/x_tables.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_CHECKENTRY_BOOL, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_CHECKENTRY_BOOL, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for old struct xt_target_param])
+if test -f $ksourcedir/include/linux/netfilter/x_tables.h && \
+   $GREP -q '^struct xt_target_param ' $ksourcedir/include/linux/netfilter/x_tables.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_XT_TARGET_PARAM, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_XT_TARGET_PARAM, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for id in struct pernet_operations])
+if test -f $ksourcedir/include/net/net_namespace.h && \
+   $AWK '/struct pernet_operations/ {for(i=1; i<=6; i++) {getline; print}}' $ksourcedir/include/net/net_namespace.h | $GREP -q 'int \*id;'; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_NET_OPS_ID, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_NET_OPS_ID, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for user_ns in struct net])
+if test -f $ksourcedir/include/net/net_namespace.h && \
+   $AWK '/^struct net \{/ {for(i=1; i<=20; i++) {getline; print}}' $ksourcedir/include/net/net_namespace.h | $GREP -q 'user_ns'; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_USER_NS_IN_STRUCT_NET, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_USER_NS_IN_STRUCT_NET, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for rbtree_postorder_for_each_entry_safe])
+if test -f $ksourcedir/include/linux/rbtree.h && \
+   $GREP -q 'rbtree_postorder_for_each_entry_safe' $ksourcedir/include/linux/rbtree.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_RBTREE_POSTORDER_FOR_EACH_ENTRY_SAFE, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_RBTREE_POSTORDER_FOR_EACH_ENTRY_SAFE, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for kvfree])
+if test -f $ksourcedir/include/linux/mm.h && \
+   $GREP -q 'kvfree' $ksourcedir/include/linux/mm.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_KVFREE, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_KVFREE, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for struct net in struct xt_mtchk_param])
+if test -f $ksourcedir/include/linux/netfilter/x_tables.h && \
+   $AWK '/^struct xt_mtchk_param / {for(i=1; i<=5; i++) {getline; print}}' $ksourcedir/include/linux/netfilter/x_tables.h | \
+   $GREP -q 'struct net '; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_XT_MTCHK_PARAM_STRUCT_NET, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_XT_MTCHK_PARAM_STRUCT_NET, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for struct net in the change function of tcf_ematch_ops])
+if test -f $ksourcedir/include/net/pkt_cls.h && \
+   $AWK '/^struct tcf_ematch_ops / {for(i=1; i<=5; i++) {getline; print}}' $ksourcedir/include/net/pkt_cls.h | \
+   $GREP -q '\*change..struct net \*net'; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_TCF_EMATCH_OPS_CHANGE_ARG_NET, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_TCF_EMATCH_OPS_CHANGE_ARG_NET, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for struct net in struct tcf_ematch])
+if test -f $ksourcedir/include/net/pkt_cls.h && \
+   $AWK '/^struct tcf_ematch_ops / {for(i=1; i<=7; i++) {getline; print}}' $ksourcedir/include/net/pkt_cls.h | \
+   $GREP -q 'struct net'; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_TCF_EMATCH_STRUCT_NET, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_TCF_EMATCH_STRUCT_NET, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for list_last_entry])
+if test -f $ksourcedir/include/linux/list.h && \
+   $GREP -q 'list_last_entry' $ksourcedir/include/linux/list.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_LIST_LAST_ENTRY, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_LIST_LAST_ENTRY, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for list_next_entry])
+if test -f $ksourcedir/include/linux/list.h && \
+   $GREP -q 'list_next_entry' $ksourcedir/include/linux/list.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_LIST_NEXT_ENTRY, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_LIST_NEXT_ENTRY, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for ether_addr_copy])
+if test -f $ksourcedir/include/linux/etherdevice.h && \
+   $GREP -q 'ether_addr_copy' $ksourcedir/include/linux/etherdevice.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_ETHER_ADDR_COPY, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_ETHER_ADDR_COPY, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for nf_bridge_get_physindev])
+if test -f $ksourcedir/include/linux/netfilter_bridge.h && \
+   $GREP -q 'nf_bridge_get_physindev' $ksourcedir/include/linux/netfilter_bridge.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_NF_BRIDGE_GET_PHYSDEV, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_NF_BRIDGE_GET_PHYSDEV, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for nla_put_in_addr])
+if test -f $ksourcedir/include/net/netlink.h && \
+   $GREP -q 'nla_put_in_add' $ksourcedir/include/net/netlink.h; then
+	AC_MSG_RESULT(yes)
+	AC_SUBST(HAVE_NLA_PUT_IN_ADDR, define)
+else
+	AC_MSG_RESULT(no)
+	AC_SUBST(HAVE_NLA_PUT_IN_ADDR, undef)
+fi
+
+AC_MSG_CHECKING([kernel source for struct net_generic])
+if test -f $ksourcedir/include/net/netns/generic.h && \
+   $GREP -q 'struct net_generic' $ksourcedir/include/net/netns/generic.h; then
+	AC_MSG_RESULT(yes)
+else
+	AC_MSG_RESULT(no)
+	AC_MSG_ERROR([Netns support is required in the Linux kernel tree])
+fi
+fi
+
+dnl Checks for compiler characteristics.
 dnl Check extra warning flags except
 dnl	-Wconversion		-> we need it
 dnl	-Wunreachable-code	-> fails with ntoh*
 dnl	-Wpointer-arith		-> limbnl uses it
+dnl	-Wsign-conversion	-> libmnl
 if test "x$enable_debug" = "xyes"
 then
 AX_CFLAGS_GCC_OPTION(-Waggregate-return)
@@ -140,27 +452,70 @@ AX_CFLAGS_GCC_OPTION(-Werror)
 AX_CFLAGS_GCC_OPTION(-Wextra)
 AX_CFLAGS_GCC_OPTION(-Wfloat-equal)
 AX_CFLAGS_GCC_OPTION(-Wformat=2)
+AX_CFLAGS_GCC_OPTION(-Wjump-misses-init)
 AX_CFLAGS_GCC_OPTION(-Winit-self)
 AX_CFLAGS_GCC_OPTION(-Winline)
+AX_CFLAGS_GCC_OPTION(-Wlogical-op)
 AX_CFLAGS_GCC_OPTION(-Wmissing-declarations)
 AX_CFLAGS_GCC_OPTION(-Wmissing-format-attribute)
 AX_CFLAGS_GCC_OPTION(-Wmissing-prototypes)
 AX_CFLAGS_GCC_OPTION(-Wnested-externs)
 AX_CFLAGS_GCC_OPTION(-Wno-missing-field-initializers)
+AX_CFLAGS_GCC_OPTION(-Wold-style-definition)
 AX_CFLAGS_GCC_OPTION(-Woverlength-strings)
 AX_CFLAGS_GCC_OPTION(-Wpacked)
 AX_CFLAGS_GCC_OPTION(-Wredundant-decls)
+AX_CFLAGS_GCC_OPTION(-Wrwrite-strings)
 AX_CFLAGS_GCC_OPTION(-Wshadow)
 AX_CFLAGS_GCC_OPTION(-Wsign-compare)
 AX_CFLAGS_GCC_OPTION(-Wstrict-prototypes)
 AX_CFLAGS_GCC_OPTION(-Wswitch-default)
 AX_CFLAGS_GCC_OPTION(-Wundef)
+AX_CFLAGS_GCC_OPTION(-Wuninitialized)
 AX_CFLAGS_GCC_OPTION(-Wunused)
+AX_CFLAGS_GCC_OPTION(-Wvla)
 AX_CFLAGS_GCC_OPTION(-Wwrite-strings)
 fi
 dnl Checks for library functions.
 
 dnl Generate output
 AC_CONFIG_FILES([Makefile include/libipset/Makefile
-	lib/Makefile lib/libipset.pc src/Makefile])
+	lib/Makefile lib/libipset.pc src/Makefile
+	kernel/include/linux/netfilter/ipset/ip_set_compat.h])
 AC_OUTPUT
+
+dnl Summary
+AC_MSG_RESULT([])
+AC_MSG_RESULT([$PACKAGE userspace tool configuration:])
+if test "x$enable_settype_modules" != "xyes"; then
+	AC_MSG_RESULT([    Dynamic module loading: disabled])
+else
+	AC_MSG_RESULT([    Dynamic module loading: enabled])
+fi
+IPSET_ALL_MODULES="`ls ${srcdir}/lib/ipset_*.c|sed -e 's/^.*lib\///' -e 's/\.c$//'`"
+AC_MSG_RESULT([    Static modules:])
+if test "x$SETTYPE_MODLIST" = "x"; then
+	for mod in $IPSET_ALL_MODULES; do
+		AC_MSG_RESULT([        ${mod}])
+	done
+	AC_MSG_RESULT([    Dynamic modules:])
+elif echo $SETTYPE_MODLIST | grep "all" >/dev/null; then
+	AC_MSG_RESULT([    Dynamic modules:])
+	for mod in $IPSET_ALL_MODULES; do
+		AC_MSG_RESULT([        ${mod}])
+	done
+else
+	for mod in $IPSET_ALL_MODULES; do
+		if echo $SETTYPE_MODLIST | grep $mod >/dev/null; then
+			:
+		else
+			AC_MSG_RESULT([        ${mod}])
+		fi
+	done
+	AC_MSG_RESULT([    Dynamic modules:])
+	for mod in $IPSET_ALL_MODULES; do
+		if echo $SETTYPE_MODLIST | grep $mod >/dev/null; then
+			AC_MSG_RESULT([        ${mod}])
+		fi
+	done
+fi

@@ -8,7 +8,7 @@
 /* Get Layer-4 data from the packets */
 
 #include <linux/version.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0)
+#ifdef HAVE_EXPORT_H
 #include <linux/export.h>
 #endif
 #include <linux/ip.h>
@@ -21,6 +21,7 @@
 #include <net/ipv6.h>
 
 #include <linux/netfilter/ipset/ip_set_getport.h>
+#include <linux/netfilter/ipset/ip_set_compat.h>
 
 /* We must handle non-linear skbs */
 static bool
@@ -33,7 +34,7 @@ get_port(const struct sk_buff *skb, int protocol, unsigned int protooff,
 		const struct tcphdr *th;
 
 		th = skb_header_pointer(skb, protooff, sizeof(_tcph), &_tcph);
-		if (th == NULL)
+		if (!th)
 			/* No choice either */
 			return false;
 
@@ -45,7 +46,7 @@ get_port(const struct sk_buff *skb, int protocol, unsigned int protooff,
 		const sctp_sctphdr_t *sh;
 
 		sh = skb_header_pointer(skb, protooff, sizeof(_sh), &_sh);
-		if (sh == NULL)
+		if (!sh)
 			/* No choice either */
 			return false;
 
@@ -58,7 +59,7 @@ get_port(const struct sk_buff *skb, int protocol, unsigned int protooff,
 		const struct udphdr *uh;
 
 		uh = skb_header_pointer(skb, protooff, sizeof(_udph), &_udph);
-		if (uh == NULL)
+		if (!uh)
 			/* No choice either */
 			return false;
 
@@ -70,7 +71,7 @@ get_port(const struct sk_buff *skb, int protocol, unsigned int protooff,
 		const struct icmphdr *ic;
 
 		ic = skb_header_pointer(skb, protooff, sizeof(_ich), &_ich);
-		if (ic == NULL)
+		if (!ic)
 			return false;
 
 		*port = (__force __be16)htons((ic->type << 8) | ic->code);
@@ -81,7 +82,7 @@ get_port(const struct sk_buff *skb, int protocol, unsigned int protooff,
 		const struct icmp6hdr *ic;
 
 		ic = skb_header_pointer(skb, protooff, sizeof(_ich), &_ich);
-		if (ic == NULL)
+		if (!ic)
 			return false;
 
 		*port = (__force __be16)
@@ -101,28 +102,49 @@ ip_set_get_ip4_port(const struct sk_buff *skb, bool src,
 		    __be16 *port, u8 *proto)
 {
 	const struct iphdr *iph = ip_hdr(skb);
-	unsigned int protooff = ip_hdrlen(skb);
+	unsigned int protooff = skb_network_offset(skb) + ip_hdrlen(skb);
 	int protocol = iph->protocol;
 
 	/* See comments at tcp_match in ip_tables.c */
-	if (protocol <= 0 || (ntohs(iph->frag_off) & IP_OFFSET))
+	if (protocol <= 0)
 		return false;
+
+	if (ntohs(iph->frag_off) & IP_OFFSET)
+		switch (protocol) {
+		case IPPROTO_TCP:
+		case IPPROTO_SCTP:
+		case IPPROTO_UDP:
+		case IPPROTO_UDPLITE:
+		case IPPROTO_ICMP:
+			/* Port info not available for fragment offset > 0 */
+			return false;
+		default:
+			/* Other protocols doesn't have ports,
+			 * so we can match fragments.
+			 */
+			*proto = protocol;
+			return true;
+		}
 
 	return get_port(skb, protocol, protooff, src, port, proto);
 }
 EXPORT_SYMBOL_GPL(ip_set_get_ip4_port);
 
-#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
+#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 bool
 ip_set_get_ip6_port(const struct sk_buff *skb, bool src,
 		    __be16 *port, u8 *proto)
 {
 	int protoff;
 	u8 nexthdr;
+	__be16 frag_off = 0;
 
 	nexthdr = ipv6_hdr(skb)->nexthdr;
-	protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr);
-	if (protoff < 0)
+	protoff = ipv6_skip_exthdr(skb,
+				   skb_network_offset(skb) +
+					sizeof(struct ipv6hdr), &nexthdr,
+				   &frag_off);
+	if (protoff < 0 || (frag_off & htons(~0x7)) != 0)
 		return false;
 
 	return get_port(skb, nexthdr, protoff, src, port, proto);

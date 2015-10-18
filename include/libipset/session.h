@@ -21,6 +21,10 @@ struct ipset_session;
 struct ipset_data;
 struct ipset_handle;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern struct ipset_data *
 	ipset_session_data(const struct ipset_session *session);
 extern struct ipset_handle *
@@ -97,9 +101,15 @@ extern int ipset_cmd(struct ipset_session *session, enum ipset_cmd cmd,
 typedef int (*ipset_outfn)(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
+extern int ipset_session_outfn(struct ipset_session *session,
+			       ipset_outfn outfn);
 extern struct ipset_session *ipset_session_init(ipset_outfn outfn);
 extern int ipset_session_fini(struct ipset_session *session);
 
 extern void ipset_debug_msg(const char *dir, void *buffer, int len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* LIBIPSET_SESSION_H */

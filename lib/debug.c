@@ -38,6 +38,7 @@ static const struct ipset_attrname createattr2name[] = {
 	[IPSET_ATTR_GC]		= { .name = "GC" },
 	[IPSET_ATTR_HASHSIZE]	= { .name = "HASHSIZE" },
 	[IPSET_ATTR_MAXELEM]	= { .name = "MAXELEM" },
+	[IPSET_ATTR_MARKMASK]	= { .name = "MARKMASK" },
 	[IPSET_ATTR_NETMASK]	= { .name = "NETMASK" },
 	[IPSET_ATTR_PROBES]	= { .name = "PROBES" },
 	[IPSET_ATTR_RESIZE]	= { .name = "RESIZE" },
@@ -51,6 +52,7 @@ static const struct ipset_attrname adtattr2name[] = {
 	[IPSET_ATTR_IP]		= { .name = "IP" },
 	[IPSET_ATTR_IP_TO]	= { .name = "IP_TO" },
 	[IPSET_ATTR_CIDR]	= { .name = "CIDR" },
+	[IPSET_ATTR_MARK]	= { .name = "MARK" },
 	[IPSET_ATTR_PORT]	= { .name = "PORT" },
 	[IPSET_ATTR_PORT_TO]	= { .name = "PORT_TO" },
 	[IPSET_ATTR_TIMEOUT]	= { .name = "TIMEOUT" },
@@ -64,6 +66,10 @@ static const struct ipset_attrname adtattr2name[] = {
 	[IPSET_ATTR_CIDR2]	= { .name = "CIDR2" },
 	[IPSET_ATTR_IP2_TO]	= { .name = "IP2_TO" },
 	[IPSET_ATTR_IFACE]	= { .name = "IFACE" },
+	[IPSET_ATTR_COMMENT]	= { .name = "COMMENT" },
+	[IPSET_ATTR_SKBMARK]	= { .name = "SKBMARK" },
+	[IPSET_ATTR_SKBPRIO]	= { .name = "SKBPRIO" },
+	[IPSET_ATTR_SKBQUEUE]	= { .name = "SKBQUEUE" },
 };
 
 static void
@@ -95,6 +101,12 @@ debug_cadt_attrs(int max, const struct ipset_attr_policy *policy,
 			fprintf(stderr, "\t\t%s: %u\n",
 				attr2name[i].name, ntohl(v));
 			break;
+		case MNL_TYPE_U64:
+			fprintf(stderr, "\t\t%s: 0x%llx\n",
+				attr2name[i].name, (long long int)
+				be64toh(*(uint64_t *)
+					mnl_attr_get_payload(nla[i])));
+			break;
 		case MNL_TYPE_NUL_STRING:
 			fprintf(stderr, "\t\t%s: %s\n",
 				attr2name[i].name,
@@ -116,14 +128,16 @@ debug_cadt_attrs(int max, const struct ipset_attr_policy *policy,
 				d = mnl_attr_get_payload(
 					ipattr[IPSET_ATTR_IPADDR_IPV4]);
 
-				inet_ntop(NFPROTO_IPV4, d, addr, INET6_ADDRSTRLEN);
+				inet_ntop(NFPROTO_IPV4, d, addr,
+					  INET6_ADDRSTRLEN);
 				fprintf(stderr, "\t\t%s: %s\n",
 					attr2name[i].name, addr);
 			} else if (ipattr[IPSET_ATTR_IPADDR_IPV6]) {
 				d = mnl_attr_get_payload(
 					ipattr[IPSET_ATTR_IPADDR_IPV6]);
 
-				inet_ntop(NFPROTO_IPV6, d, addr, INET6_ADDRSTRLEN);
+				inet_ntop(NFPROTO_IPV6, d, addr,
+					  INET6_ADDRSTRLEN);
 				fprintf(stderr, "\t\t%s: %s\n",
 					attr2name[i].name, addr);
 			}
@@ -234,6 +248,19 @@ ipset_debug_msg(const char *dir, void *buffer, int len)
 	int cmd, nfmsglen = MNL_ALIGN(sizeof(struct nfgenmsg));
 
 	debug = 0;
+	if (!mnl_nlmsg_ok(nlh, len)) {
+		fprintf(stderr, "Broken message received!\n");
+		if (len < (int)sizeof(struct nlmsghdr)) {
+			fprintf(stderr, "len (%d) < sizeof(struct nlmsghdr) (%d)\n",
+				len, (int)sizeof(struct nlmsghdr));
+		} else if (nlh->nlmsg_len < sizeof(struct nlmsghdr)) {
+			fprintf(stderr, "nlmsg_len (%u) < sizeof(struct nlmsghdr) (%d)\n",
+				nlh->nlmsg_len, (int)sizeof(struct nlmsghdr));
+		} else if ((int)nlh->nlmsg_len > len) {
+			fprintf(stderr, "nlmsg_len (%u) > len (%d)\n",
+				 nlh->nlmsg_len, len);
+		}
+	}
 	while (mnl_nlmsg_ok(nlh, len)) {
 		switch (nlh->nlmsg_type) {
 		case NLMSG_NOOP:

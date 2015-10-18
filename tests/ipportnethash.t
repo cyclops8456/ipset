@@ -35,7 +35,7 @@
 # Range: Try to add value after second random value
 0 ipset -A test 2.1.0.1,128,2.2.2.2/12
 # Range: List set
-0 ipset -L test > .foo0 && ./sort.sh .foo0
+0 ipset -L test | grep -v Revision: > .foo0 && ./sort.sh .foo0
 # Range: Check listing
 0 diff -u -I 'Size in memory.*' .foo ipportnethash.t.list0
 # Range: Flush test set
@@ -65,7 +65,7 @@
 # Network: Try to add value after second random value
 0 ipset -A test 2.1.0.0,128,2.2.2.2/12
 # Network: List set
-0 ipset -L test > .foo0 && ./sort.sh .foo0
+0 ipset -L test | grep -v Revision: > .foo0 && ./sort.sh .foo0
 # Network: Check listing
 0 diff -u -I 'Size in memory.*' .foo ipportnethash.t.list1
 # Network: Flush test set
@@ -73,7 +73,7 @@
 # Add a non-matching IP address entry
 0 ipset -A test 2.1.0.0,80,1.1.1.1 nomatch
 # Add an overlapping matching small net
-0 ipset -A test 2.1.0.0,80,1.1.1.0/30 
+0 ipset -A test 2.1.0.0,80,1.1.1.0/30
 # Add an overlapping non-matching larger net
 0 ipset -A test 2.1.0.0,80,1.1.1.0/28 nomatch
 # Add an even larger matching net

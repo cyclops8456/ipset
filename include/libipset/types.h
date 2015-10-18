@@ -81,10 +81,14 @@ struct ipset_type {
 	uint64_t full[IPSET_CADT_MAX];		/* full args flags */
 	const char *usage;			/* terse usage */
 	void (*usagefn)(void);			/* additional usage */
-
+	const char *description;		/* short revision description */
 	struct ipset_type *next;
 	const char *alias[];			/* name alias(es) */
 };
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern int ipset_cache_add(const char *name, const struct ipset_type *type,
 			   uint8_t family);
@@ -106,5 +110,19 @@ extern const char *ipset_typename_resolve(const char *str);
 extern bool ipset_match_typename(const char *str,
 				 const struct ipset_type *t);
 extern void ipset_load_types(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef TYPE_INCLUSIVE
+#	ifdef _INIT
+#		undef _init
+#		define _init _INIT
+#	endif
+#else
+#	undef _init
+#	define _init __attribute__((constructor)) _INIT
+#endif
 
 #endif /* LIBIPSET_TYPES_H */

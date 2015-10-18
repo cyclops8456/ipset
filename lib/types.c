@@ -19,25 +19,11 @@
 #include <libipset/utils.h>			/* STREQ */
 #include <libipset/types.h>			/* prototypes */
 
-/* The known set types: (typename, revision, family) is unique */
-extern struct ipset_type ipset_bitmap_ip0;
-extern struct ipset_type ipset_bitmap_ipmac0;
-extern struct ipset_type ipset_bitmap_port0;
-extern struct ipset_type ipset_hash_ip0;
-extern struct ipset_type ipset_hash_net0;
-extern struct ipset_type ipset_hash_net1;
-extern struct ipset_type ipset_hash_net2;
-extern struct ipset_type ipset_hash_netport1;
-extern struct ipset_type ipset_hash_netport2;
-extern struct ipset_type ipset_hash_netport3;
-extern struct ipset_type ipset_hash_netiface0;
-extern struct ipset_type ipset_hash_netiface1;
-extern struct ipset_type ipset_hash_ipport1;
-extern struct ipset_type ipset_hash_ipportip1;
-extern struct ipset_type ipset_hash_ipportnet1;
-extern struct ipset_type ipset_hash_ipportnet2;
-extern struct ipset_type ipset_hash_ipportnet3;
-extern struct ipset_type ipset_list_set0;
+#ifdef ENABLE_SETTYPE_MODULES
+#include <dlfcn.h>
+#include <sys/types.h>
+#include <dirent.h>
+#endif
 
 /* Userspace cache of sets which exists in the kernel */
 
@@ -221,6 +207,7 @@ create_type_get(struct ipset_session *session)
 	uint8_t family, tmin = 0, tmax = 0;
 	uint8_t kmin, kmax;
 	int ret;
+	bool ignore_family = false;
 
 	data = ipset_session_data(session);
 	assert(data);
@@ -252,6 +239,8 @@ create_type_get(struct ipset_session *session)
 		family = match->family == NFPROTO_IPSET_IPV46 ?
 			 NFPROTO_IPV4 : match->family;
 		ipset_data_set(data, IPSET_OPT_FAMILY, &family);
+		if (match->family == NFPROTO_IPSET_IPV46)
+			ignore_family = true;
 	}
 
 	if (match->kernel_check == IPSET_KERNEL_OK)
@@ -308,11 +297,16 @@ create_type_get(struct ipset_session *session)
 found:
 	ipset_data_set(data, IPSET_OPT_TYPE, match);
 
+	if (ignore_family) {
+		/* Overload ignored flag */
+		D("set ignored flag to FAMILY");
+		ipset_data_ignored(data, IPSET_OPT_FAMILY);
+	}
 	return match;
 }
 
 #define set_family_and_type(data, match, family) do {		\
-	if (family == NFPROTO_UNSPEC && match->family != NFPROTO_UNSPEC)	\
+	if (family == NFPROTO_UNSPEC && match->family != NFPROTO_UNSPEC) \
 		family = match->family == NFPROTO_IPSET_IPV46 ? \
 			 NFPROTO_IPV4 : match->family;\
 	ipset_data_set(data, IPSET_OPT_FAMILY, &family);	\
@@ -404,7 +398,11 @@ ipset_type_get(struct ipset_session *session, enum ipset_cmd cmd)
 
 	switch (cmd) {
 	case IPSET_CMD_CREATE:
-		return create_type_get(session);
+		return ipset_data_test(ipset_session_data(session),
+				       IPSET_OPT_TYPE)
+			? ipset_data_get(ipset_session_data(session),
+					 IPSET_OPT_TYPE)
+			: create_type_get(session);
 	case IPSET_CMD_ADD:
 	case IPSET_CMD_DEL:
 	case IPSET_CMD_TEST:
@@ -575,33 +573,68 @@ ipset_cache_fini(void)
 	}
 }
 
+extern void ipset_types_init(void);
+
 /**
  * ipset_load_types - load known set types
  *
  * Load in (register) all known set types for the system
  */
- void
- ipset_load_types(void)
- {
- 	if (typelist != NULL)
- 		return;
+void
+ipset_load_types(void)
+{
+#ifdef ENABLE_SETTYPE_MODULES
+	const char *dir  = IPSET_MODSDIR;
+	const char *next = NULL;
+	char   path[256];
+	char   file[256];
+	struct dirent **list = NULL;
+	int    n;
+	int    len;
+#endif
 
-	ipset_type_add(&ipset_bitmap_ip0);
-	ipset_type_add(&ipset_bitmap_ipmac0);
-	ipset_type_add(&ipset_bitmap_port0);
-	ipset_type_add(&ipset_hash_ip0);
-	ipset_type_add(&ipset_hash_net0);
-	ipset_type_add(&ipset_hash_net1);
-	ipset_type_add(&ipset_hash_net2);
-	ipset_type_add(&ipset_hash_netport1);
-	ipset_type_add(&ipset_hash_netport2);
-	ipset_type_add(&ipset_hash_netport3);
-	ipset_type_add(&ipset_hash_netiface0);
-	ipset_type_add(&ipset_hash_netiface1);
-	ipset_type_add(&ipset_hash_ipport1);
-	ipset_type_add(&ipset_hash_ipportip1);
-	ipset_type_add(&ipset_hash_ipportnet1);
-	ipset_type_add(&ipset_hash_ipportnet2);
-	ipset_type_add(&ipset_hash_ipportnet3);
-	ipset_type_add(&ipset_list_set0);
+	if (typelist != NULL)
+		return;
+
+	/* Initialize static types */
+	ipset_types_init();
+
+#ifdef ENABLE_SETTYPE_MODULES
+	/* Initialize dynamic types */
+	do {
+		next = strchr(dir, ':');
+		if (next == NULL)
+			next = dir + strlen(dir);
+
+		len = snprintf(path, sizeof(path), "%.*s",
+			       (unsigned int)(next - dir), dir);
+
+		if (len >= (int)sizeof(path) || len < 0)
+			continue;
+
+		n = scandir(path, &list, NULL, alphasort);
+		if (n < 0)
+			continue;
+
+		while (n--) {
+			if (strstr(list[n]->d_name, ".so") == NULL)
+				goto nextf;
+
+			len = snprintf(file, sizeof(file), "%s/%s",
+				       path, list[n]->d_name);
+			if (len >= (int)sizeof(file) || len < (int)0)
+				goto nextf;
+
+			if (dlopen(file, RTLD_NOW) == NULL)
+				fprintf(stderr, "%s: %s\n", file, dlerror());
+
+nextf:
+			free(list[n]);
+		}
+
+		free(list);
+
+		dir = next + 1;
+	} while (*next != '\0');
+#endif /* ENABLE_SETTYPE_MODULES */
 }

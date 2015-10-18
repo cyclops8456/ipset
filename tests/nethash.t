@@ -1,5 +1,5 @@
-# Create a set 
-0 ipset -N test nethash --hashsize 128 
+# Create a set
+0 ipset -N test nethash --hashsize 128
 # Add zero valued element
 1 ipset -A test 0.0.0.0/0
 # Test zero valued element
@@ -33,7 +33,7 @@
 # Try to add IP address
 0 ipset -A test 2.0.0.1
 # List set
-0 ipset -L test > .foo0 && ./sort.sh .foo0
+0 ipset -L test | grep -v Revision: > .foo0 && ./sort.sh .foo0
 # Check listing
 0 diff -u -I 'Size in memory.*' .foo nethash.t.list0
 # Flush test set
@@ -41,7 +41,7 @@
 # Add a non-matching IP address entry
 0 ipset -A test 1.1.1.1 nomatch
 # Add an overlapping matching small net
-0 ipset -A test 1.1.1.0/30 
+0 ipset -A test 1.1.1.0/30
 # Add an overlapping non-matching larger net
 0 ipset -A test 1.1.1.0/28 nomatch
 # Add an even larger matching net

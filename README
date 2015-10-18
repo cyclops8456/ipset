@@ -2,7 +2,7 @@ This is the ipset source tree. Follow the next steps to install ipset.
 If you upgrade from an earlier 5.x release, please read the UPGRADE
 instructions too.
 
-0. You need the source tree of your kernel (version >= 2.6.34)
+0. You need the source tree of your kernel (version >= 2.6.32)
    and it have to be configured with ip6tables support enabled,
    modules compiled. For kernel versions < 2.6.39 please apply
    the netlink.patch against your kernel tree, which adds the
@@ -71,7 +71,7 @@ Compatibilities and incompatibilities:
   ipset 5.x or 4.x.
 - The ipset 6.x kernel part can work together with the set match and SET
   target from iptables 1.4.7 and below, however if you need the IPv6 support
-  from ipset 6.x, then you have to use iptables 1.4.8 or above.
+  from ipset 6.x, then you have to use iptables 1.4.9 or above.
 
 The ipset 6.x can interpret the commandline syntax of ipset 4.x, however
 some internal changes mean different behaviour:

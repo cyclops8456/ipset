@@ -22,6 +22,7 @@ enum ipset_opt {
 	IPSET_OPT_IP_FROM = IPSET_OPT_IP,
 	IPSET_OPT_IP_TO,
 	IPSET_OPT_CIDR,
+	IPSET_OPT_MARK,
 	IPSET_OPT_PORT,
 	IPSET_OPT_PORT_FROM = IPSET_OPT_PORT,
 	IPSET_OPT_PORT_TO,
@@ -30,10 +31,12 @@ enum ipset_opt {
 	IPSET_OPT_GC,
 	IPSET_OPT_HASHSIZE,
 	IPSET_OPT_MAXELEM,
+	IPSET_OPT_MARKMASK,
 	IPSET_OPT_NETMASK,
 	IPSET_OPT_PROBES,
 	IPSET_OPT_RESIZE,
 	IPSET_OPT_SIZE,
+	IPSET_OPT_FORCEADD,
 	/* Create-specific options, filled out by the kernel */
 	IPSET_OPT_ELEMENTS,
 	IPSET_OPT_REFERENCES,
@@ -54,6 +57,15 @@ enum ipset_opt {
 	IPSET_OPT_BEFORE,
 	IPSET_OPT_PHYSDEV,
 	IPSET_OPT_NOMATCH,
+	IPSET_OPT_COUNTERS,
+	IPSET_OPT_PACKETS,
+	IPSET_OPT_BYTES,
+	IPSET_OPT_CREATE_COMMENT,
+	IPSET_OPT_ADT_COMMENT,
+	IPSET_OPT_SKBINFO,
+	IPSET_OPT_SKBMARK,
+	IPSET_OPT_SKBPRIO,
+	IPSET_OPT_SKBQUEUE,
 	/* Internal options */
 	IPSET_OPT_FLAGS = 48,	/* IPSET_FLAG_EXIST| */
 	IPSET_OPT_CADT_FLAGS,	/* IPSET_FLAG_BEFORE| */
@@ -65,8 +77,8 @@ enum ipset_opt {
 	IPSET_OPT_MAX,
 };
 
-#define IPSET_FLAG(opt)		(1LL << (opt))
-#define IPSET_FLAGS_ALL		(~0LL)
+#define IPSET_FLAG(opt)		(1ULL << (opt))
+#define IPSET_FLAGS_ALL		(~0ULL)
 
 #define IPSET_CREATE_FLAGS		\
 	(IPSET_FLAG(IPSET_OPT_FAMILY)	\
@@ -81,15 +93,21 @@ enum ipset_opt {
 	| IPSET_FLAG(IPSET_OPT_GC)	\
 	| IPSET_FLAG(IPSET_OPT_HASHSIZE)\
 	| IPSET_FLAG(IPSET_OPT_MAXELEM)	\
+	| IPSET_FLAG(IPSET_OPT_MARKMASK)\
 	| IPSET_FLAG(IPSET_OPT_NETMASK)	\
 	| IPSET_FLAG(IPSET_OPT_PROBES)	\
 	| IPSET_FLAG(IPSET_OPT_RESIZE)	\
-	| IPSET_FLAG(IPSET_OPT_SIZE))
+	| IPSET_FLAG(IPSET_OPT_SIZE)	\
+	| IPSET_FLAG(IPSET_OPT_COUNTERS)\
+	| IPSET_FLAG(IPSET_OPT_CREATE_COMMENT)\
+	| IPSET_FLAG(IPSET_OPT_FORCEADD)\
+	| IPSET_FLAG(IPSET_OPT_SKBINFO))
 
 #define IPSET_ADT_FLAGS			\
 	(IPSET_FLAG(IPSET_OPT_IP)	\
 	| IPSET_FLAG(IPSET_OPT_IP_TO)	\
 	| IPSET_FLAG(IPSET_OPT_CIDR)	\
+	| IPSET_FLAG(IPSET_OPT_MARK)	\
 	| IPSET_FLAG(IPSET_OPT_PORT)	\
 	| IPSET_FLAG(IPSET_OPT_PORT_TO)	\
 	| IPSET_FLAG(IPSET_OPT_TIMEOUT)	\
@@ -103,16 +121,29 @@ enum ipset_opt {
 	| IPSET_FLAG(IPSET_OPT_CADT_FLAGS)\
 	| IPSET_FLAG(IPSET_OPT_BEFORE) \
 	| IPSET_FLAG(IPSET_OPT_PHYSDEV) \
-	| IPSET_FLAG(IPSET_OPT_NOMATCH))
+	| IPSET_FLAG(IPSET_OPT_NOMATCH) \
+	| IPSET_FLAG(IPSET_OPT_PACKETS)	\
+	| IPSET_FLAG(IPSET_OPT_BYTES)	\
+	| IPSET_FLAG(IPSET_OPT_ADT_COMMENT)\
+	| IPSET_FLAG(IPSET_OPT_SKBMARK)	\
+	| IPSET_FLAG(IPSET_OPT_SKBPRIO)	\
+	| IPSET_FLAG(IPSET_OPT_SKBQUEUE))
 
 struct ipset_data;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern void ipset_strlcpy(char *dst, const char *src, size_t len);
+extern void ipset_strlcat(char *dst, const char *src, size_t len);
 extern bool ipset_data_flags_test(const struct ipset_data *data,
 				  uint64_t flags);
 extern void ipset_data_flags_set(struct ipset_data *data, uint64_t flags);
 extern void ipset_data_flags_unset(struct ipset_data *data, uint64_t flags);
 extern bool ipset_data_ignored(struct ipset_data *data, enum ipset_opt opt);
+extern bool ipset_data_test_ignored(struct ipset_data *data,
+				    enum ipset_opt opt);
 
 extern int ipset_data_set(struct ipset_data *data, enum ipset_opt opt,
 			  const void *value);
@@ -136,5 +167,9 @@ extern struct ipset_data *ipset_data_init(void);
 extern void ipset_data_fini(struct ipset_data *data);
 
 extern size_t ipset_data_sizeof(enum ipset_opt opt, uint8_t family);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* LIBIPSET_DATA_H */

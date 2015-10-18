@@ -6,7 +6,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <assert.h>			/* assert */
 #include <ctype.h>			/* isspace */
+#include <errno.h>			/* errno */
 #include <stdarg.h>			/* va_* */
 #include <stdbool.h>			/* bool */
 #include <stdio.h>			/* fprintf, fgets */
@@ -32,6 +34,8 @@ static bool interactive;
 static char cmdline[1024];
 static char *newargv[255];
 static int newargc;
+static FILE *fd = NULL;
+static const char *filename = NULL;
 
 enum exittype {
 	NO_PROBLEM = 0,
@@ -74,6 +78,8 @@ exit_error(int status, const char *msg, ...)
 		ipset_session_fini(session);
 
 	D("status: %u", status);
+	if (fd)
+		fclose(fd);
 	exit(status > VERSION_PROBLEM ? OTHER_PROBLEM : status);
 	/* Unreached */
 	return -1;
@@ -92,6 +98,8 @@ handle_error(void)
 
 	if (!interactive) {
 		ipset_session_fini(session);
+		if (fd)
+			fclose(fd);
 		exit(OTHER_PROBLEM);
 	}
 
@@ -120,29 +128,88 @@ help(void)
 	}
 }
 
+int
+ipset_parse_file(struct ipset_session *s UNUSED,
+		 int opt UNUSED, const char *str)
+{
+	if (filename != NULL)
+		return exit_error(PARAMETER_PROBLEM,
+				  "-file option can be specified once");
+	filename = str;
+
+	return 0;
+}
+
+static
+int __attribute__ ((format (printf, 1, 2)))
+ipset_print_file(const char *fmt, ...)
+{
+	int len;
+	va_list args;
+
+	assert(fd != NULL);
+	va_start(args, fmt);
+	len = vfprintf(fd, fmt, args);
+	va_end(args);
+
+	return len;
+}
+
 /* Build faked argv from parsed line */
 static void
 build_argv(char *buffer)
 {
-	char *ptr;
+	char *tmp, *arg;
 	int i;
+	bool quoted = false;
 
 	/* Reset */
-	for (i = 1; i < newargc; i++)
+	for (i = 1; i < newargc; i++) {
+		if (newargv[i])
+			free(newargv[i]);
 		newargv[i] = NULL;
+	}
 	newargc = 1;
 
-	ptr = strtok(buffer, " \t\r\n");
-	newargv[newargc++] = ptr;
-	while ((ptr = strtok(NULL, " \t\r\n")) != NULL) {
-		if ((newargc + 1) < (int)(sizeof(newargv)/sizeof(char *)))
-			newargv[newargc++] = ptr;
-		else {
+	arg = calloc(strlen(buffer) + 1, sizeof(*buffer));
+	for (tmp = buffer, i = 0; *tmp; tmp++) {
+		if ((newargc + 1) == (int)(sizeof(newargv)/sizeof(char *))) {
 			exit_error(PARAMETER_PROBLEM,
 				   "Line is too long to parse.");
 			return;
 		}
+		switch (*tmp) {
+		case '"':
+			quoted = !quoted;
+			if (*(tmp+1))
+				continue;
+			break;
+		case ' ':
+		case '\r':
+		case '\n':
+		case '\t':
+			if (!quoted)
+				break;
+			arg[i++] = *tmp;
+			continue;
+		default:
+			arg[i++] = *tmp;
+			if (*(tmp+1))
+				continue;
+			break;
+		}
+		if (!*(tmp+1) && quoted) {
+			exit_error(PARAMETER_PROBLEM, "Missing close quote!");
+			return;
+		}
+		if (!*arg)
+			continue;
+		newargv[newargc] = calloc(strlen(arg) + 1, sizeof(*arg));
+		ipset_strlcpy(newargv[newargc++], arg, strlen(arg) + 1);
+		memset(arg, 0, strlen(arg) + 1);
+		i = 0;
 	}
+	free(arg);
 }
 
 /* Main parser function, workhorse */
@@ -156,12 +223,23 @@ restore(char *argv0)
 {
 	int ret = 0;
 	char *c;
+	FILE *rfd = stdin;
 
 	/* Initialize newargv/newargc */
 	newargc = 0;
-	newargv[newargc++] = argv0;
+	newargv[newargc] = calloc(strlen(argv0) + 1, sizeof(*argv0));
+	ipset_strlcpy(newargv[newargc++], argv0, strlen(argv0) + 1);
+	if (filename) {
+		fd = fopen(filename, "r");
+		if (!fd) {
+			return exit_error(OTHER_PROBLEM,
+					  "Cannot open %s for reading: %s",
+					  filename, strerror(errno));
+		}
+		rfd = fd;
+	}
 
-	while (fgets(cmdline, sizeof(cmdline), stdin)) {
+	while (fgets(cmdline, sizeof(cmdline), rfd)) {
 		restore_line++;
 		c = cmdline;
 		while (isspace(c[0]))
@@ -187,61 +265,78 @@ restore(char *argv0)
 	if (ret < 0)
 		handle_error();
 
+	free(newargv[0]);
 	return ret;
 }
 
-static int
-call_parser(int *argc, char *argv[], const struct ipset_arg *args)
+static bool do_parse(const struct ipset_arg *arg, bool family)
 {
-	int ret = 0;
+	return !((family == true) ^ (arg->opt == IPSET_OPT_FAMILY));
+}
+
+static int
+call_parser(int *argc, char *argv[], const struct ipset_arg *args, bool family)
+{
+	int ret = 0, i = 1;
 	const struct ipset_arg *arg;
 	const char *optstr;
 
 	/* Currently CREATE and ADT may have got additional arguments */
 	if (!args && *argc > 1)
 		goto err_unknown;
-	while (*argc > 1) {
+	while (*argc > i) {
+		ret = -1;
 		for (arg = args; arg->opt; arg++) {
-			D("argc: %u, %s vs %s", *argc, argv[1], arg->name[0]);
-			if (!(ipset_match_option(argv[1], arg->name)))
+			D("argc: %u, %s vs %s", i, argv[i], arg->name[0]);
+			if (!(ipset_match_option(argv[i], arg->name)))
 				continue;
 
-			optstr = argv[1];
-			/* Shift off matched option */
-			D("match %s", arg->name[0]);
-			ipset_shift_argv(argc, argv, 1);
+			optstr = argv[i];
+			/* Matched option */
+			D("match %s, argc %u, i %u, %s",
+			  arg->name[0], *argc, i + 1,
+			  do_parse(arg, family) ? "parse" : "skip");
+			i++;
+			ret = 0;
 			switch (arg->has_arg) {
 			case IPSET_MANDATORY_ARG:
-				if (*argc < 2)
+				if (*argc - i < 1)
 					return exit_error(PARAMETER_PROBLEM,
 						"Missing mandatory argument "
 						"of option `%s'",
 						arg->name[0]);
 				/* Fall through */
 			case IPSET_OPTIONAL_ARG:
-				if (*argc >= 2) {
-					ret = ipset_call_parser(session,
-						arg, argv[1]);
-					if (ret < 0)
-						return ret;
-					ipset_shift_argv(argc, argv, 1);
+				if (*argc - i >= 1) {
+					if (do_parse(arg, family)) {
+						ret = ipset_call_parser(
+							session, arg, argv[i]);
+						if (ret < 0)
+							return ret;
+					}
+					i++;
 					break;
 				}
 				/* Fall through */
 			default:
-				ret = ipset_call_parser(session, arg, optstr);
-				if (ret < 0)
-					return ret;
+				if (do_parse(arg, family)) {
+					ret = ipset_call_parser(
+						session, arg, optstr);
+					if (ret < 0)
+						return ret;
+				}
 			}
 			break;
 		}
-		if (!arg->opt)
+		if (ret < 0)
 			goto err_unknown;
 	}
+	if (!family)
+		*argc = 0;
 	return ret;
 
 err_unknown:
-	return exit_error(PARAMETER_PROBLEM, "Unknown argument: `%s'", argv[1]);
+	return exit_error(PARAMETER_PROBLEM, "Unknown argument: `%s'", argv[i]);
 }
 
 static enum ipset_adt
@@ -518,6 +613,8 @@ parse_commandline(int argc, char *argv[])
 	case IPSET_CMD_NONE:
 		if (interactive) {
 			printf("No command specified\n");
+			if (session)
+				ipset_envopt_parse(session, 0, "reset");
 			return 0;
 		}
 		if (argc > 1 && STREQ(argv[1], "-")) {
@@ -529,12 +626,15 @@ parse_commandline(int argc, char *argv[])
 				c = cmdline;
 				while (isspace(c[0]))
 					c++;
-				if (c[0] == '\0' || c[0] == '#')
+				if (c[0] == '\0' || c[0] == '#') {
+					printf("%s> ", program_name);
 					continue;
+				}
 				/* Build fake argv, argc */
 				build_argv(c);
-				/* Execute line: ignore errors */
-				parse_commandline(newargc, newargv);
+				/* Execute line: ignore soft errors */
+				if (parse_commandline(newargc, newargv) < 0)
+					handle_error();
 				printf("%s> ", program_name);
 			}
 			return exit_error(NO_PROBLEM, NULL);
@@ -582,7 +682,11 @@ parse_commandline(int argc, char *argv[])
 				printf("\nSupported set types:\n");
 				type = ipset_types();
 				while (type) {
-					printf("    %s\n", type->name);
+					printf("    %s\t%s%u\t%s\n",
+					       type->name,
+					       strlen(type->name) < 12 ? "\t" : "",
+					       type->revision,
+					       type->description);
 					type = type->next;
 				}
 			}
@@ -612,8 +716,15 @@ parse_commandline(int argc, char *argv[])
 		if (type == NULL)
 			return handle_error();
 
-		/* Parse create options */
-		ret = call_parser(&argc, argv, type->args[IPSET_CREATE]);
+		/* Parse create options: first check INET family */
+		ret = call_parser(&argc, argv, type->args[IPSET_CREATE], true);
+		if (ret < 0)
+			return handle_error();
+		else if (ret)
+			return ret;
+
+		/* Parse create options: then check all options */
+		ret = call_parser(&argc, argv, type->args[IPSET_CREATE], false);
 		if (ret < 0)
 			return handle_error();
 		else if (ret)
@@ -624,10 +735,19 @@ parse_commandline(int argc, char *argv[])
 		check_allowed(type, cmd);
 
 		break;
-	case IPSET_CMD_DESTROY:
-	case IPSET_CMD_FLUSH:
 	case IPSET_CMD_LIST:
 	case IPSET_CMD_SAVE:
+		if (filename != NULL) {
+			fd = fopen(filename, "w");
+			if (!fd)
+				return exit_error(OTHER_PROBLEM,
+						  "Cannot open %s for writing: "
+						  "%s", filename,
+						  strerror(errno));
+			ipset_session_outfn(session, ipset_print_file);
+		}
+	case IPSET_CMD_DESTROY:
+	case IPSET_CMD_FLUSH:
 		/* Args: [setname] */
 		if (arg0) {
 			ret = ipset_parse_setname(session,
@@ -672,7 +792,7 @@ parse_commandline(int argc, char *argv[])
 			return handle_error();
 
 		/* Parse additional ADT options */
-		ret = call_parser(&argc, argv, type->args[cmd2cmd(cmd)]);
+		ret = call_parser(&argc, argv, type->args[cmd2cmd(cmd)], false);
 		if (ret < 0)
 			return handle_error();
 		else if (ret)
@@ -721,6 +841,8 @@ main(int argc, char *argv[])
 	ret = parse_commandline(argc, argv);
 
 	ipset_session_fini(session);
+	if (fd)
+		fclose(fd);
 
 	return ret;
 }

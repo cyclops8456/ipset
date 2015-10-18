@@ -41,6 +41,7 @@ struct ipset_data {
 	uint32_t timeout;
 	union nf_inet_addr ip;
 	union nf_inet_addr ip_to;
+	uint32_t mark;
 	uint16_t port;
 	uint16_t port_to;
 	union {
@@ -53,6 +54,7 @@ struct ipset_data {
 			uint8_t netmask;
 			uint32_t hashsize;
 			uint32_t maxelem;
+			uint32_t markmask;
 			uint32_t gc;
 			uint32_t size;
 			/* Filled out by kernel */
@@ -73,6 +75,12 @@ struct ipset_data {
 			char name[IPSET_MAXNAMELEN];
 			char nameref[IPSET_MAXNAMELEN];
 			char iface[IFNAMSIZ];
+			uint64_t packets;
+			uint64_t bytes;
+			char comment[IPSET_MAX_COMMENT_SIZE+1];
+			uint64_t skbmark;
+			uint32_t skbprio;
+			uint16_t skbqueue;
 		} adt;
 	};
 };
@@ -102,6 +110,25 @@ ipset_strlcpy(char *dst, const char *src, size_t len)
 	assert(src);
 
 	strncpy(dst, src, len);
+	dst[len - 1] = '\0';
+}
+
+/**
+ * ipset_strlcat - concatenate the string from src to the end of dst
+ * @dst: the target string buffer
+ * @src: the source string buffer
+ * @len: the length of bytes to concat, including the terminating null byte.
+ *
+ * Cooncatenate the string in src to destination, but at most len bytes are
+ * copied. The target is unconditionally terminated by the null byte.
+ */
+void
+ipset_strlcat(char *dst, const char *src, size_t len)
+{
+	assert(dst);
+	assert(src);
+
+	strncat(dst, src, len);
 	dst[len - 1] = '\0';
 }
 
@@ -166,7 +193,7 @@ do {						\
  * @data: data blob
  * @flags: the option flag to be ignored
  *
- * Returns true if the option was not already ignored.
+ * Returns true if the option was already ignored.
  */
 bool
 ipset_data_ignored(struct ipset_data *data, enum ipset_opt opt)
@@ -178,6 +205,21 @@ ipset_data_ignored(struct ipset_data *data, enum ipset_opt opt)
 	data->ignored |= IPSET_FLAG(opt);
 
 	return ignored;
+}
+
+/**
+ * ipset_data_test_ignored - test ignored bits in the data blob
+ * @data: data blob
+ * @flags: the option flag to be tested
+ *
+ * Returns true if the option is ignored.
+ */
+bool
+ipset_data_test_ignored(struct ipset_data *data, enum ipset_opt opt)
+{
+	assert(data);
+
+	return data->ignored & IPSET_FLAG(opt);
 }
 
 /**
@@ -208,21 +250,27 @@ ipset_data_set(struct ipset_data *data, enum ipset_opt opt, const void *value)
 		break;
 	case IPSET_OPT_FAMILY:
 		data->family = *(const uint8_t *) value;
+		data->ignored &= ~IPSET_FLAG(IPSET_OPT_FAMILY);
 		D("family set to %u", data->family);
 		break;
 	/* CADT options */
 	case IPSET_OPT_IP:
-		if (!(data->family == NFPROTO_IPV4 || data->family == NFPROTO_IPV6))
+		if (!(data->family == NFPROTO_IPV4 ||
+		      data->family == NFPROTO_IPV6))
 			return -1;
 		copy_addr(data->family, &data->ip, value);
 		break;
 	case IPSET_OPT_IP_TO:
-		if (!(data->family == NFPROTO_IPV4 || data->family == NFPROTO_IPV6))
+		if (!(data->family == NFPROTO_IPV4 ||
+		      data->family == NFPROTO_IPV6))
 			return -1;
 		copy_addr(data->family, &data->ip_to, value);
 		break;
 	case IPSET_OPT_CIDR:
 		data->cidr = *(const uint8_t *) value;
+		break;
+	case IPSET_OPT_MARK:
+		data->mark = *(const uint32_t *) value;
 		break;
 	case IPSET_OPT_PORT:
 		data->port = *(const uint16_t *) value;
@@ -243,6 +291,9 @@ ipset_data_set(struct ipset_data *data, enum ipset_opt opt, const void *value)
 	case IPSET_OPT_MAXELEM:
 		data->create.maxelem = *(const uint32_t *) value;
 		break;
+	case IPSET_OPT_MARKMASK:
+		data->create.markmask = *(const uint32_t *) value;
+		break;
 	case IPSET_OPT_NETMASK:
 		data->create.netmask = *(const uint8_t *) value;
 		break;
@@ -254,6 +305,18 @@ ipset_data_set(struct ipset_data *data, enum ipset_opt opt, const void *value)
 		break;
 	case IPSET_OPT_SIZE:
 		data->create.size = *(const uint32_t *) value;
+		break;
+	case IPSET_OPT_COUNTERS:
+		cadt_flag_type_attr(data, opt, IPSET_FLAG_WITH_COUNTERS);
+		break;
+	case IPSET_OPT_CREATE_COMMENT:
+		cadt_flag_type_attr(data, opt, IPSET_FLAG_WITH_COMMENT);
+		break;
+	case IPSET_OPT_FORCEADD:
+		cadt_flag_type_attr(data, opt, IPSET_FLAG_WITH_FORCEADD);
+		break;
+	case IPSET_OPT_SKBINFO:
+		cadt_flag_type_attr(data, opt, IPSET_FLAG_WITH_SKBINFO);
 		break;
 	/* Create-specific options, filled out by the kernel */
 	case IPSET_OPT_ELEMENTS:
@@ -287,12 +350,14 @@ ipset_data_set(struct ipset_data *data, enum ipset_opt opt, const void *value)
 		ipset_strlcpy(data->adt.nameref, value, IPSET_MAXNAMELEN);
 		break;
 	case IPSET_OPT_IP2:
-		if (!(data->family == NFPROTO_IPV4 || data->family == NFPROTO_IPV6))
+		if (!(data->family == NFPROTO_IPV4 ||
+		      data->family == NFPROTO_IPV6))
 			return -1;
 		copy_addr(data->family, &data->adt.ip2, value);
 		break;
 	case IPSET_OPT_IP2_TO:
-		if (!(data->family == NFPROTO_IPV4 || data->family == NFPROTO_IPV6))
+		if (!(data->family == NFPROTO_IPV4 ||
+		      data->family == NFPROTO_IPV6))
 			return -1;
 		copy_addr(data->family, &data->adt.ip2_to, value);
 		break;
@@ -304,6 +369,25 @@ ipset_data_set(struct ipset_data *data, enum ipset_opt opt, const void *value)
 		break;
 	case IPSET_OPT_IFACE:
 		ipset_strlcpy(data->adt.iface, value, IFNAMSIZ);
+		break;
+	case IPSET_OPT_PACKETS:
+		data->adt.packets = *(const uint64_t *) value;
+		break;
+	case IPSET_OPT_BYTES:
+		data->adt.bytes = *(const uint64_t *) value;
+		break;
+	case IPSET_OPT_ADT_COMMENT:
+		ipset_strlcpy(data->adt.comment, value,
+			      IPSET_MAX_COMMENT_SIZE + 1);
+		break;
+	case IPSET_OPT_SKBMARK:
+		data->adt.skbmark = *(const uint64_t *) value;
+		break;
+	case IPSET_OPT_SKBPRIO:
+		data->adt.skbprio = *(const uint32_t *) value;
+		break;
+	case IPSET_OPT_SKBQUEUE:
+		data->adt.skbqueue = *(const uint16_t *) value;
 		break;
 	/* Swap/rename */
 	case IPSET_OPT_SETNAME2:
@@ -328,11 +412,23 @@ ipset_data_set(struct ipset_data *data, enum ipset_opt opt, const void *value)
 	case IPSET_OPT_CADT_FLAGS:
 		data->cadt_flags = *(const uint32_t *)value;
 		if (data->cadt_flags & IPSET_FLAG_BEFORE)
-			ipset_data_flags_set(data, IPSET_FLAG(IPSET_OPT_BEFORE));
+			ipset_data_flags_set(data,
+					     IPSET_FLAG(IPSET_OPT_BEFORE));
 		if (data->cadt_flags & IPSET_FLAG_PHYSDEV)
-			ipset_data_flags_set(data, IPSET_FLAG(IPSET_OPT_PHYSDEV));
+			ipset_data_flags_set(data,
+					     IPSET_FLAG(IPSET_OPT_PHYSDEV));
 		if (data->cadt_flags & IPSET_FLAG_NOMATCH)
-			ipset_data_flags_set(data, IPSET_FLAG(IPSET_OPT_NOMATCH));
+			ipset_data_flags_set(data,
+					     IPSET_FLAG(IPSET_OPT_NOMATCH));
+		if (data->cadt_flags & IPSET_FLAG_WITH_COUNTERS)
+			ipset_data_flags_set(data,
+					     IPSET_FLAG(IPSET_OPT_COUNTERS));
+		if (data->cadt_flags & IPSET_FLAG_WITH_COMMENT)
+			ipset_data_flags_set(data,
+					     IPSET_FLAG(IPSET_OPT_CREATE_COMMENT));
+		if (data->cadt_flags & IPSET_FLAG_WITH_SKBINFO)
+			ipset_data_flags_set(data,
+					     IPSET_FLAG(IPSET_OPT_SKBINFO));
 		break;
 	default:
 		return -1;
@@ -348,7 +444,7 @@ ipset_data_set(struct ipset_data *data, enum ipset_opt opt, const void *value)
  * @opt: option kind of the requested data
  *
  * Returns the pointer to the requested kind of data from the data blob
- * if it is set. If the option kind is not set or is an unkown type,
+ * if it is set. If the option kind is not set or is an unknown type,
  * NULL is returned.
  */
 const void *
@@ -381,6 +477,8 @@ ipset_data_get(const struct ipset_data *data, enum ipset_opt opt)
 		 return &data->ip_to;
 	case IPSET_OPT_CIDR:
 		return &data->cidr;
+	case IPSET_OPT_MARK:
+		return &data->mark;
 	case IPSET_OPT_PORT:
 		return &data->port;
 	case IPSET_OPT_PORT_TO:
@@ -394,6 +492,8 @@ ipset_data_get(const struct ipset_data *data, enum ipset_opt opt)
 		return &data->create.hashsize;
 	case IPSET_OPT_MAXELEM:
 		return &data->create.maxelem;
+	case IPSET_OPT_MARKMASK:
+		return &data->create.markmask;
 	case IPSET_OPT_NETMASK:
 		return &data->create.netmask;
 	case IPSET_OPT_PROBES:
@@ -431,6 +531,18 @@ ipset_data_get(const struct ipset_data *data, enum ipset_opt opt)
 		return &data->adt.proto;
 	case IPSET_OPT_IFACE:
 		return &data->adt.iface;
+	case IPSET_OPT_PACKETS:
+		return &data->adt.packets;
+	case IPSET_OPT_BYTES:
+		return &data->adt.bytes;
+	case IPSET_OPT_ADT_COMMENT:
+		return &data->adt.comment;
+	case IPSET_OPT_SKBMARK:
+		return &data->adt.skbmark;
+	case IPSET_OPT_SKBPRIO:
+		return &data->adt.skbprio;
+	case IPSET_OPT_SKBQUEUE:
+		return &data->adt.skbqueue;
 	/* Swap/rename */
 	case IPSET_OPT_SETNAME2:
 		return data->setname2;
@@ -442,6 +554,10 @@ ipset_data_get(const struct ipset_data *data, enum ipset_opt opt)
 	case IPSET_OPT_BEFORE:
 	case IPSET_OPT_PHYSDEV:
 	case IPSET_OPT_NOMATCH:
+	case IPSET_OPT_COUNTERS:
+	case IPSET_OPT_CREATE_COMMENT:
+	case IPSET_OPT_FORCEADD:
+	case IPSET_OPT_SKBINFO:
 		return &data->cadt_flags;
 	default:
 		return NULL;
@@ -467,8 +583,11 @@ ipset_data_sizeof(enum ipset_opt opt, uint8_t family)
 	case IPSET_OPT_IP2_TO:
 		return family == NFPROTO_IPV4 ? sizeof(uint32_t)
 					 : sizeof(struct in6_addr);
+	case IPSET_OPT_MARK:
+		return sizeof(uint32_t);
 	case IPSET_OPT_PORT:
 	case IPSET_OPT_PORT_TO:
+	case IPSET_OPT_SKBQUEUE:
 		return sizeof(uint16_t);
 	case IPSET_SETNAME:
 	case IPSET_OPT_NAME:
@@ -478,11 +597,17 @@ ipset_data_sizeof(enum ipset_opt opt, uint8_t family)
 	case IPSET_OPT_GC:
 	case IPSET_OPT_HASHSIZE:
 	case IPSET_OPT_MAXELEM:
+	case IPSET_OPT_MARKMASK:
 	case IPSET_OPT_SIZE:
 	case IPSET_OPT_ELEMENTS:
 	case IPSET_OPT_REFERENCES:
 	case IPSET_OPT_MEMSIZE:
+	case IPSET_OPT_SKBPRIO:
 		return sizeof(uint32_t);
+	case IPSET_OPT_PACKETS:
+	case IPSET_OPT_BYTES:
+	case IPSET_OPT_SKBMARK:
+		return sizeof(uint64_t);
 	case IPSET_OPT_CIDR:
 	case IPSET_OPT_CIDR2:
 	case IPSET_OPT_NETMASK:
@@ -496,7 +621,11 @@ ipset_data_sizeof(enum ipset_opt opt, uint8_t family)
 	case IPSET_OPT_BEFORE:
 	case IPSET_OPT_PHYSDEV:
 	case IPSET_OPT_NOMATCH:
+	case IPSET_OPT_COUNTERS:
+	case IPSET_OPT_FORCEADD:
 		return sizeof(uint32_t);
+	case IPSET_OPT_ADT_COMMENT:
+		return IPSET_MAX_COMMENT_SIZE + 1;
 	default:
 		return 0;
 	};
