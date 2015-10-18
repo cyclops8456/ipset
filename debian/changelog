@@ -1,3 +1,10 @@
+ipset (6.10-1+vyos2+lithium5) unstable; urgency=low
+
+  [ Alex Harpin ]
+  * Update to upstream version 6.10
+
+ -- Alex Harpin <development@landsofshadow.co.uk>  Sun, 18 Oct 2015 16:27:42 +0100
+ 
 ipset (6.9-1+vyos2+lithium4) unstable; urgency=low
 
   * ipset: update dh_gencontrol with new development build flag
