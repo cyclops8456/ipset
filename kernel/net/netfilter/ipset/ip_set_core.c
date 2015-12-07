@@ -1100,19 +1100,21 @@ dump_last:
 			ret = -EMSGSIZE;
 			goto release_refcount;
 		}
-		NLA_PUT_U8(skb, IPSET_ATTR_PROTOCOL, IPSET_PROTOCOL);
-		NLA_PUT_STRING(skb, IPSET_ATTR_SETNAME, set->name);
+		if (nla_put_u8(skb, IPSET_ATTR_PROTOCOL, IPSET_PROTOCOL) ||
+		    nla_put_string(skb, IPSET_ATTR_SETNAME, set->name))
+			goto nla_put_failure;
 		if (dump_flags & IPSET_FLAG_LIST_SETNAME)
 			goto next_set;
 		switch (cb->args[2]) {
 		case 0:
 			/* Core header data */
-			NLA_PUT_STRING(skb, IPSET_ATTR_TYPENAME,
-				       set->type->name);
-			NLA_PUT_U8(skb, IPSET_ATTR_FAMILY,
-				   set->family);
-			NLA_PUT_U8(skb, IPSET_ATTR_REVISION,
-				   set->revision);
+			if (nla_put_string(skb, IPSET_ATTR_TYPENAME,
+					   set->type->name) ||
+			    nla_put_u8(skb, IPSET_ATTR_FAMILY,
+				       set->family) ||
+			    nla_put_u8(skb, IPSET_ATTR_REVISION,
+				       set->revision))
+				goto nla_put_failure;
 			ret = set->variant->head(set, skb);
 			if (ret < 0)
 				goto release_refcount;
@@ -1170,12 +1172,22 @@ ip_set_dump(struct sock *ctnl, struct sk_buff *skb,
 	if (unlikely(protocol_failed(attr)))
 		return -IPSET_ERR_PROTOCOL;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 1, 0)
 	return netlink_dump_start(ctnl, skb, nlh,
 				  ip_set_dump_start,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 1, 0)
 				  ip_set_dump_done);
-#else
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0)
+	return netlink_dump_start(ctnl, skb, nlh,
+				  ip_set_dump_start,
 				  ip_set_dump_done, 0);
+#else
+	{
+		struct netlink_dump_control c = {
+			.dump = ip_set_dump_start,
+			.done = ip_set_dump_done,
+		};
+		return netlink_dump_start(ctnl, skb, nlh, &c);
+	}
 #endif
 }
 
@@ -1418,11 +1430,12 @@ ip_set_header(struct sock *ctnl, struct sk_buff *skb,
 			 IPSET_CMD_HEADER);
 	if (!nlh2)
 		goto nlmsg_failure;
-	NLA_PUT_U8(skb2, IPSET_ATTR_PROTOCOL, IPSET_PROTOCOL);
-	NLA_PUT_STRING(skb2, IPSET_ATTR_SETNAME, set->name);
-	NLA_PUT_STRING(skb2, IPSET_ATTR_TYPENAME, set->type->name);
-	NLA_PUT_U8(skb2, IPSET_ATTR_FAMILY, set->family);
-	NLA_PUT_U8(skb2, IPSET_ATTR_REVISION, set->revision);
+	if (nla_put_u8(skb2, IPSET_ATTR_PROTOCOL, IPSET_PROTOCOL) ||
+	    nla_put_string(skb2, IPSET_ATTR_SETNAME, set->name) ||
+	    nla_put_string(skb2, IPSET_ATTR_TYPENAME, set->type->name) ||
+	    nla_put_u8(skb2, IPSET_ATTR_FAMILY, set->family) ||
+	    nla_put_u8(skb2, IPSET_ATTR_REVISION, set->revision))
+		goto nla_put_failure;
 	nlmsg_end(skb2, nlh2);
 
 	ret = netlink_unicast(ctnl, skb2, NETLINK_CB(skb).pid, MSG_DONTWAIT);
@@ -1477,11 +1490,12 @@ ip_set_type(struct sock *ctnl, struct sk_buff *skb,
 			 IPSET_CMD_TYPE);
 	if (!nlh2)
 		goto nlmsg_failure;
-	NLA_PUT_U8(skb2, IPSET_ATTR_PROTOCOL, IPSET_PROTOCOL);
-	NLA_PUT_STRING(skb2, IPSET_ATTR_TYPENAME, typename);
-	NLA_PUT_U8(skb2, IPSET_ATTR_FAMILY, family);
-	NLA_PUT_U8(skb2, IPSET_ATTR_REVISION, max);
-	NLA_PUT_U8(skb2, IPSET_ATTR_REVISION_MIN, min);
+	if (nla_put_u8(skb2, IPSET_ATTR_PROTOCOL, IPSET_PROTOCOL) ||
+	    nla_put_string(skb2, IPSET_ATTR_TYPENAME, typename) ||
+	    nla_put_u8(skb2, IPSET_ATTR_FAMILY, family) ||
+	    nla_put_u8(skb2, IPSET_ATTR_REVISION, max) ||
+	    nla_put_u8(skb2, IPSET_ATTR_REVISION_MIN, min))
+		goto nla_put_failure;
 	nlmsg_end(skb2, nlh2);
 
 	pr_debug("Send TYPE, nlmsg_len: %u\n", nlh2->nlmsg_len);
@@ -1525,7 +1539,8 @@ ip_set_protocol(struct sock *ctnl, struct sk_buff *skb,
 			 IPSET_CMD_PROTOCOL);
 	if (!nlh2)
 		goto nlmsg_failure;
-	NLA_PUT_U8(skb2, IPSET_ATTR_PROTOCOL, IPSET_PROTOCOL);
+	if (nla_put_u8(skb2, IPSET_ATTR_PROTOCOL, IPSET_PROTOCOL))
+		goto nla_put_failure;
 	nlmsg_end(skb2, nlh2);
 
 	ret = netlink_unicast(ctnl, skb2, NETLINK_CB(skb).pid, MSG_DONTWAIT);

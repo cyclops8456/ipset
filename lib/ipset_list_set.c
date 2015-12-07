@@ -17,7 +17,7 @@ static const struct ipset_arg list_set_create_args[] = {
 	},
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	{ },
 };
@@ -25,7 +25,7 @@ static const struct ipset_arg list_set_create_args[] = {
 static const struct ipset_arg list_set_adt_args[] = {
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	{ .name = { "before", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_NAMEREF,
@@ -46,7 +46,7 @@ static const char list_set_usage[] =
 "test   SETNAME NAME [before|after NAME]\n\n"
 "where NAME are existing set names.\n";
 
-struct ipset_type ipset_list_set0 = {
+static struct ipset_type ipset_list_set0 = {
 	.name = "list:set",
 	.alias = { "setlist", NULL },
 	.revision = 0,
@@ -89,3 +89,9 @@ struct ipset_type ipset_list_set0 = {
 
 	.usage = list_set_usage,
 };
+
+void _init(void);
+void _init(void)
+{
+	ipset_type_add(&ipset_list_set0);
+}

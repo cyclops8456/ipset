@@ -651,7 +651,8 @@ ipset_parse_family(struct ipset_session *session,
 	assert(str);
 
 	data = ipset_session_data(session);
-	if (ipset_data_flags_test(data, IPSET_FLAG(IPSET_OPT_FAMILY)))
+	if (ipset_data_flags_test(data, IPSET_FLAG(IPSET_OPT_FAMILY))
+	    && !ipset_data_test_ignored(data, IPSET_OPT_FAMILY))
 		syntax_err("protocol family may not be specified "
 			   "multiple times");
 
@@ -1130,6 +1131,35 @@ ipset_parse_ip4_net6(struct ipset_session *session,
 }
 
 /**
+ * ipset_parse_timeout - parse timeout parameter
+ * @session: session structure
+ * @opt: option kind of the data
+ * @str: string to parse
+ *
+ * Parse string as a timeout parameter. We have to take into account
+ * the jiffies storage in kernel.
+ *
+ * Returns 0 on success or a negative error code.
+ */
+int
+ipset_parse_timeout(struct ipset_session *session,
+		    enum ipset_opt opt, const char *str)
+{
+	int err;
+	unsigned long long num = 0;
+
+	assert(session);
+	assert(opt == IPSET_OPT_TIMEOUT);
+	assert(str);
+
+	err = string_to_number_ll(session, str, 0, UINT_MAX/1000, &num);
+	if (err == 0)
+		return ipset_session_data_set(session, opt, &num);
+
+	return err;
+}
+
+/**
  * ipset_parse_iptimeout - parse IPv4|IPv6 address and timeout
  * @session: session structure
  * @opt: option kind of the data
@@ -1171,7 +1201,7 @@ ipset_parse_iptimeout(struct ipset_session *session,
 	*a++ = '\0';
 	err = parse_ip(session, opt, tmp, IPADDR_ANY);
 	if (!err)
-		err = ipset_parse_uint32(session, IPSET_OPT_TIMEOUT, a);
+		err = ipset_parse_timeout(session, IPSET_OPT_TIMEOUT, a);
 
 	free(saved);
 	return err;
@@ -1525,6 +1555,8 @@ ipset_parse_iface(struct ipset_session *session,
 	if (STREQ(str, "physdev:")) {
 		offset = 8;
 		err = ipset_data_set(data, IPSET_OPT_PHYSDEV, str);
+		if (err < 0)
+			return err;
 	}
 	if (strlen(str + offset) > IFNAMSIZ - 1)
 		return syntax_err("interface name '%s' is longer "
@@ -1606,9 +1638,12 @@ ipset_call_parser(struct ipset_session *session,
 				  const struct ipset_arg *arg,
 				  const char *str)
 {
-	if (ipset_data_flags_test(ipset_session_data(session),
-				  IPSET_FLAG(arg->opt)))
-		syntax_err("%s already specified", arg->name[0]);
+	struct ipset_data *data = ipset_session_data(session);
+
+	if (ipset_data_flags_test(data, IPSET_FLAG(arg->opt))
+	    && !(arg->opt == IPSET_OPT_FAMILY
+	         && ipset_data_test_ignored(data, IPSET_OPT_FAMILY)))
+		return syntax_err("%s already specified", arg->name[0]);
 
 	return arg->parse(session, arg->opt, str);
 }

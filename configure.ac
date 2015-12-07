@@ -1,10 +1,16 @@
 dnl Boilerplate
-AC_INIT([ipset], [6.11], [kadlec@blackhole.kfki.hu])
+AC_INIT([ipset], [6.12.1], [kadlec@blackhole.kfki.hu])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADER([config.h])
 AM_INIT_AUTOMAKE([foreign subdir-objects tar-pax])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+
+AC_ENABLE_STATIC
+LT_INIT([dlopen])
+LT_CONFIG_LTDL_DIR([libltdl])
+LTDL_INIT([nonrecursive])
 
 dnl Shortcut: Linux supported alone
 case "$host" in
@@ -86,19 +92,44 @@ AC_ARG_ENABLE([verbose],
 	       *) AC_MSG_ERROR([bad value ${enableval} for --enable-verbose]) ;;
 	       esac], [enable_verbose=no])
 	      
-AM_CONDITIONAL([ENABLE_VERBOSE], [test "x$enable_verbose" = xyes])
-
-dnl Enable debugging
-AC_ARG_ENABLE([debug],
-	      AS_HELP_STRING([--enable-debug],
-	                     [Enable compiling with debug support.]),
-	      [case "${enableval}" in
-	       yes)	enable_verbose=yes ;;
-	       no)	enable_verbose=no ;;
-	       *) AC_MSG_ERROR([bad value ${enableval} for --enable-debug]) ;;
-	       esac], [enable_debug=no])
-	      
 AM_CONDITIONAL([ENABLE_DEBUG], [test "x$enable_debug" = xyes])
+
+dnl Enable type modules
+AC_ARG_ENABLE([settype_modules],
+	          AS_HELP_STRING([--enable-settype-modules],
+	          [Enable set type modules support]),
+	          [enable_settype_modules="$enableval"],
+	          [enable_settype_modules="no"])
+
+AC_ARG_WITH([settype_modules_list],
+	        AS_HELP_STRING([--with-settype-modules-list="mod1 mod2 ..."],
+	                       [List of dynamic loading modules, ignored if settype-modules is disabled. It could be "all" to build all available settypes as modules]),
+	                       [SETTYPE_MODLIST_RAW="$withval";])
+
+SETTYPE_MODLIST=
+if test "x$enable_settype_modules" = "xyes"; then
+	for mod in $SETTYPE_MODLIST_RAW; do
+		if echo $mod | grep "all"; then
+			m="${mod}"
+		else
+			if echo $mod | grep "ipset_"; then
+				m="${mod}.c"
+			else
+				m="ipset_${mod}.c"
+			fi
+		fi
+
+		SETTYPE_MODLIST="${SETTYPE_MODLIST} $m"
+	done
+
+	AC_MSG_RESULT([checking for configuration with dynamic loading modules... $SETTYPE_MODLIST_RAW])
+fi
+AC_SUBST(SETTYPE_MODLIST)
+
+AM_CONDITIONAL([ENABLE_SETTYPE_MODULES], [test "x$enable_settype_modules" = xyes])
+
+AM_CONDITIONAL([ENABLE_STATIC], [test "x$enable_static" = xyes])
+AM_CONDITIONAL([ENABLE_SHARED], [test "x$enable_shared" = xyes])
 
 dnl Checks for programs
 : ${CFLAGS=""}
@@ -130,6 +161,7 @@ dnl Check extra warning flags except
 dnl	-Wconversion		-> we need it
 dnl	-Wunreachable-code	-> fails with ntoh*
 dnl	-Wpointer-arith		-> limbnl uses it
+dnl	-Wsign-conversion	-> libmnl
 if test "x$enable_debug" = "xyes"
 then
 AX_CFLAGS_GCC_OPTION(-Waggregate-return)
@@ -140,22 +172,28 @@ AX_CFLAGS_GCC_OPTION(-Werror)
 AX_CFLAGS_GCC_OPTION(-Wextra)
 AX_CFLAGS_GCC_OPTION(-Wfloat-equal)
 AX_CFLAGS_GCC_OPTION(-Wformat=2)
+AX_CFLAGS_GCC_OPTION(-Wjump-misses-init)
 AX_CFLAGS_GCC_OPTION(-Winit-self)
 AX_CFLAGS_GCC_OPTION(-Winline)
+AX_CFLAGS_GCC_OPTION(-Wlogical-op)
 AX_CFLAGS_GCC_OPTION(-Wmissing-declarations)
 AX_CFLAGS_GCC_OPTION(-Wmissing-format-attribute)
 AX_CFLAGS_GCC_OPTION(-Wmissing-prototypes)
 AX_CFLAGS_GCC_OPTION(-Wnested-externs)
 AX_CFLAGS_GCC_OPTION(-Wno-missing-field-initializers)
+AX_CFLAGS_GCC_OPTION(-Wold-style-definition)
 AX_CFLAGS_GCC_OPTION(-Woverlength-strings)
 AX_CFLAGS_GCC_OPTION(-Wpacked)
 AX_CFLAGS_GCC_OPTION(-Wredundant-decls)
+AX_CFLAGS_GCC_OPTION(-Wrwrite-strings)
 AX_CFLAGS_GCC_OPTION(-Wshadow)
 AX_CFLAGS_GCC_OPTION(-Wsign-compare)
 AX_CFLAGS_GCC_OPTION(-Wstrict-prototypes)
 AX_CFLAGS_GCC_OPTION(-Wswitch-default)
 AX_CFLAGS_GCC_OPTION(-Wundef)
+AX_CFLAGS_GCC_OPTION(-Wuninitialized)
 AX_CFLAGS_GCC_OPTION(-Wunused)
+AX_CFLAGS_GCC_OPTION(-Wvla)
 AX_CFLAGS_GCC_OPTION(-Wwrite-strings)
 fi
 dnl Checks for library functions.
@@ -164,3 +202,39 @@ dnl Generate output
 AC_CONFIG_FILES([Makefile include/libipset/Makefile
 	lib/Makefile lib/libipset.pc src/Makefile])
 AC_OUTPUT
+
+dnl Summary
+AC_MSG_RESULT([])
+AC_MSG_RESULT([$PACKAGE userspace tool configuration:])
+if test "x$enable_settype_modules" != "xyes"; then
+	AC_MSG_RESULT([    Dynamic module loading: disabled])
+else
+	AC_MSG_RESULT([    Dynamic module loading: enabled])
+fi
+IPSET_ALL_MODULES="`ls ${srcdir}/lib/ipset_*.c|sed -e 's/^.*lib\///' -e 's/\.c$//'`"
+AC_MSG_RESULT([    Static modules:])
+if test "x$SETTYPE_MODLIST" = "x"; then
+	for mod in $IPSET_ALL_MODULES; do
+		AC_MSG_RESULT([        ${mod}])
+	done
+	AC_MSG_RESULT([    Dynamic modules:])
+elif echo $SETTYPE_MODLIST | grep "all" >/dev/null; then
+	AC_MSG_RESULT([    Dynamic modules:])
+	for mod in $IPSET_ALL_MODULES; do
+		AC_MSG_RESULT([        ${mod}])
+	done
+else
+	for mod in $IPSET_ALL_MODULES; do
+		if echo $SETTYPE_MODLIST | grep $mod >/dev/null; then
+			:
+		else
+			AC_MSG_RESULT([        ${mod}])
+		fi
+	done
+	AC_MSG_RESULT([    Dynamic modules:])
+	for mod in $IPSET_ALL_MODULES; do
+		if echo $SETTYPE_MODLIST | grep $mod >/dev/null; then
+			AC_MSG_RESULT([        ${mod}])
+		fi
+	done
+fi

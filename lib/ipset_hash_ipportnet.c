@@ -36,7 +36,7 @@ static const struct ipset_arg hash_ipportnet_create_args[] = {
 	},
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	/* Backward compatibility */
 	{ .name = { "probes", NULL },
@@ -65,7 +65,7 @@ static const struct ipset_arg hash_ipportnet_create_args[] = {
 static const struct ipset_arg hash_ipportnet_add_args[] = {
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	{ },
 };
@@ -86,7 +86,7 @@ static const char hash_ipportnet1_usage[] =
 "      Adding/deleting multiple elements with TCP/SCTP/UDP/UDPLITE\n"
 "      port range is supported both for IPv4 and IPv6.\n";
 
-struct ipset_type ipset_hash_ipportnet1 = {
+static struct ipset_type ipset_hash_ipportnet1 = {
 	.name = "hash:ip,port,net",
 	.alias = { "ipportnethash", NULL },
 	.revision = 1,
@@ -176,7 +176,7 @@ static const char hash_ipportnet2_usage[] =
 "      Adding/deleting multiple elements with TCP/SCTP/UDP/UDPLITE\n"
 "      port range is supported both for IPv4 and IPv6.\n";
 
-struct ipset_type ipset_hash_ipportnet2 = {
+static struct ipset_type ipset_hash_ipportnet2 = {
 	.name = "hash:ip,port,net",
 	.alias = { "ipportnethash", NULL },
 	.revision = 2,
@@ -255,7 +255,7 @@ struct ipset_type ipset_hash_ipportnet2 = {
 static const struct ipset_arg hash_ipportnet3_add_args[] = {
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	{ .name = { "nomatch", NULL },
 	  .has_arg = IPSET_NO_ARG,		.opt = IPSET_OPT_NOMATCH,
@@ -280,7 +280,7 @@ static const char hash_ipportnet3_usage[] =
 "      Adding/deleting multiple elements with TCP/SCTP/UDP/UDPLITE\n"
 "      port range is supported both for IPv4 and IPv6.\n";
 
-struct ipset_type ipset_hash_ipportnet3 = {
+static struct ipset_type ipset_hash_ipportnet3 = {
 	.name = "hash:ip,port,net",
 	.alias = { "ipportnethash", NULL },
 	.revision = 3,
@@ -357,3 +357,10 @@ struct ipset_type ipset_hash_ipportnet3 = {
 	.usagefn = ipset_port_usage,
 };
 
+void _init(void);
+void _init(void)
+{
+	ipset_type_add(&ipset_hash_ipportnet1);
+	ipset_type_add(&ipset_hash_ipportnet2);
+	ipset_type_add(&ipset_hash_ipportnet3);
+}

@@ -14,11 +14,6 @@ IP_SET_MAX=256
 else
 IP_SET_MAX=$(MAXSETS)
 endif
-if ENABLE_VERBOSE
-V=1
-else
-V=0
-endif
 
 SUBDIRS		= include/libipset lib src
 
@@ -72,8 +67,16 @@ tidy: distclean modules_clean
 	rm -rf config.* configure compile depcomp install-sh libtool ltmain.sh
 	rm -rf Makefile Makefile.in lib/Makefile lib/Makefile.in src/Makefile src/Makefile.in
 	rm -rf missing stamp-h1 m4/libtool.m4 m4/lt*.m4
+	rm -rf lib/ipset_settype_check lib/types_init.c
 	find . -name '*~' -delete
 
-.PHONY: modules modules_instal modules_clean update_includes tests
+tarball:
+	rm -Rf /tmp/ipset-${PACKAGE_VERSION};
+	pushd ${top_srcdir} && git archive --prefix=ipset-${PACKAGE_VERSION}/ HEAD | tar -C /tmp -x && popd;
+	pushd /tmp/ipset-${PACKAGE_VERSION} && ./autogen.sh && popd;
+	tar -C /tmp -cjf ipset-${PACKAGE_VERSION}.tar.bz2 --owner=root --group=root ipset-${PACKAGE_VERSION}/;
+	rm -Rf /tmp/ipset-${PACKAGE_VERSION};
+
+.PHONY: modules modules_instal modules_clean update_includes tests tarball
 
 DISTCHECK_CONFIGURE_FLAGS = --with-kmod=no

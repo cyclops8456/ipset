@@ -35,7 +35,7 @@ static const struct ipset_arg hash_net_create_args[] = {
 	},
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	/* Ignored options: backward compatibilty */
 	{ .name = { "probes", NULL },
@@ -52,7 +52,7 @@ static const struct ipset_arg hash_net_create_args[] = {
 static const struct ipset_arg hash_net_add_args[] = {
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	{ },
 };
@@ -69,7 +69,7 @@ static const char hash_net0_usage[] =
 "      IP is an IPv4 or IPv6 address (or hostname),\n"
 "      CIDR is a valid IPv4 or IPv6 CIDR prefix.\n";
 
-struct ipset_type ipset_hash_net0 = {
+static struct ipset_type ipset_hash_net0 = {
 	.name = "hash:net",
 	.alias = { "nethash", NULL },
 	.revision = 0,
@@ -121,7 +121,7 @@ static const char hash_net1_usage[] =
 "      CIDR is a valid IPv4 or IPv6 CIDR prefix.\n"
 "      IP range is not supported with IPv6.\n";
 
-struct ipset_type ipset_hash_net1 = {
+static struct ipset_type ipset_hash_net1 = {
 	.name = "hash:net",
 	.alias = { "nethash", NULL },
 	.revision = 1,
@@ -165,7 +165,7 @@ struct ipset_type ipset_hash_net1 = {
 static const struct ipset_arg hash_net2_add_args[] = {
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	{ .name = { "nomatch", NULL },
 	  .has_arg = IPSET_NO_ARG,		.opt = IPSET_OPT_NOMATCH,
@@ -187,7 +187,7 @@ static const char hash_net2_usage[] =
 "      CIDR is a valid IPv4 or IPv6 CIDR prefix.\n"
 "      IP range is not supported with IPv6.\n";
 
-struct ipset_type ipset_hash_net2 = {
+static struct ipset_type ipset_hash_net2 = {
 	.name = "hash:net",
 	.alias = { "nethash", NULL },
 	.revision = 2,
@@ -229,3 +229,10 @@ struct ipset_type ipset_hash_net2 = {
 	.usage = hash_net2_usage,
 };
 
+void _init(void);
+void _init(void)
+{
+	ipset_type_add(&ipset_hash_net0);
+	ipset_type_add(&ipset_hash_net1);
+	ipset_type_add(&ipset_hash_net2);
+}

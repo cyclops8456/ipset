@@ -39,7 +39,7 @@ static const struct ipset_arg hash_ip_create_args[] = {
 	},
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	/* Ignored options: backward compatibilty */
 	{ .name = { "probes", NULL },
@@ -60,7 +60,7 @@ static const struct ipset_arg hash_ip_create_args[] = {
 static const struct ipset_arg hash_ip_add_args[] = {
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	{ },
 };
@@ -79,7 +79,7 @@ static const char hash_ip_usage[] =
 "      Adding/deleting multiple elements in IP/CIDR or FROM-TO form\n"
 "      is supported for IPv4.\n";
 
-struct ipset_type ipset_hash_ip0 = {
+static struct ipset_type ipset_hash_ip0 = {
 	.name = "hash:ip",
 	.alias = { "iphash", NULL },
 	.revision = 0,
@@ -117,3 +117,9 @@ struct ipset_type ipset_hash_ip0 = {
 
 	.usage = hash_ip_usage,
 };
+
+void _init(void);
+void _init(void)
+{
+	ipset_type_add(&ipset_hash_ip0);
+}

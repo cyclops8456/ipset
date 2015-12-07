@@ -65,8 +65,8 @@ enum ipset_opt {
 	IPSET_OPT_MAX,
 };
 
-#define IPSET_FLAG(opt)		(1LL << (opt))
-#define IPSET_FLAGS_ALL		(~0LL)
+#define IPSET_FLAG(opt)		(1ULL << (opt))
+#define IPSET_FLAGS_ALL		(~0ULL)
 
 #define IPSET_CREATE_FLAGS		\
 	(IPSET_FLAG(IPSET_OPT_FAMILY)	\
@@ -113,6 +113,7 @@ extern bool ipset_data_flags_test(const struct ipset_data *data,
 extern void ipset_data_flags_set(struct ipset_data *data, uint64_t flags);
 extern void ipset_data_flags_unset(struct ipset_data *data, uint64_t flags);
 extern bool ipset_data_ignored(struct ipset_data *data, enum ipset_opt opt);
+extern bool ipset_data_test_ignored(struct ipset_data *data, enum ipset_opt opt);
 
 extern int ipset_data_set(struct ipset_data *data, enum ipset_opt opt,
 			  const void *value);

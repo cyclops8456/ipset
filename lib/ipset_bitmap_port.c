@@ -17,7 +17,7 @@ static const struct ipset_arg bitmap_port_create_args[] = {
 	},
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	/* Backward compatibility */
 	{ .name = { "from", NULL },
@@ -34,7 +34,7 @@ static const struct ipset_arg bitmap_port_create_args[] = {
 static const struct ipset_arg bitmap_port_add_args[] = {
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	{ },
 };
@@ -47,7 +47,7 @@ static const char bitmap_port_usage[] =
 "test   SETNAME PORT\n\n"
 "where PORT, FROM and TO are port numbers or port names from /etc/services.\n";
 
-struct ipset_type ipset_bitmap_port0 = {
+static struct ipset_type ipset_bitmap_port0 = {
 	.name = "bitmap:port",
 	.alias = { "portmap", NULL },
 	.revision = 0,
@@ -85,3 +85,9 @@ struct ipset_type ipset_bitmap_port0 = {
 
 	.usage = bitmap_port_usage,
 };
+
+void _init(void);
+void _init(void)
+{
+	ipset_type_add(&ipset_bitmap_port0);
+}

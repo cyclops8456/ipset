@@ -1,5 +1,4 @@
 *~
-.*.sw*
 *.la
 *.lo
 *.o
@@ -26,4 +25,4 @@ modules.order
 /libtool
 /stamp-h1
 
-/debian
+/libltdl/

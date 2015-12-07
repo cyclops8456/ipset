@@ -36,7 +36,7 @@ static const struct ipset_arg hash_netport_create_args[] = {
 	},
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	{ },
 };
@@ -44,7 +44,7 @@ static const struct ipset_arg hash_netport_create_args[] = {
 static const struct ipset_arg hash_netport_add_args[] = {
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	{ },
 };
@@ -63,7 +63,7 @@ static const char hash_netport1_usage[] =
 "      Adding/deleting multiple elements with TCP/SCTP/UDP/UDPLITE\n"
 "      port range is supported both for IPv4 and IPv6.\n";
 
-struct ipset_type ipset_hash_netport1 = {
+static struct ipset_type ipset_hash_netport1 = {
 	.name = "hash:net,port",
 	.alias = { "netporthash", NULL },
 	.revision = 1,
@@ -137,7 +137,7 @@ static const char hash_netport2_usage[] =
 "      Adding/deleting multiple elements with TCP/SCTP/UDP/UDPLITE\n"
 "      port range is supported both for IPv4 and IPv6.\n";
 
-struct ipset_type ipset_hash_netport2 = {
+static struct ipset_type ipset_hash_netport2 = {
 	.name = "hash:net,port",
 	.alias = { "netporthash", NULL },
 	.revision = 2,
@@ -201,7 +201,7 @@ struct ipset_type ipset_hash_netport2 = {
 static const struct ipset_arg hash_netport3_add_args[] = {
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	{ .name = { "nomatch", NULL },
 	  .has_arg = IPSET_NO_ARG,		.opt = IPSET_OPT_NOMATCH,
@@ -225,7 +225,7 @@ static const char hash_netport3_usage[] =
 "      Adding/deleting multiple elements with TCP/SCTP/UDP/UDPLITE\n"
 "      port range is supported both for IPv4 and IPv6.\n";
 
-struct ipset_type ipset_hash_netport3 = {
+static struct ipset_type ipset_hash_netport3 = {
 	.name = "hash:net,port",
 	.alias = { "netporthash", NULL },
 	.revision = 3,
@@ -286,3 +286,11 @@ struct ipset_type ipset_hash_netport3 = {
 	.usage = hash_netport3_usage,
 	.usagefn = ipset_port_usage,
 };
+
+void _init(void);
+void _init(void)
+{
+	ipset_type_add(&ipset_hash_netport1);
+	ipset_type_add(&ipset_hash_netport2);
+	ipset_type_add(&ipset_hash_netport3);
+}

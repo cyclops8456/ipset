@@ -21,7 +21,7 @@ static const struct ipset_arg bitmap_ip_create_args[] = {
 	},
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	/* Backward compatibility */
 	{ .name = { "from", NULL },
@@ -42,7 +42,7 @@ static const struct ipset_arg bitmap_ip_create_args[] = {
 static const struct ipset_arg bitmap_ip_add_args[] = {
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	{ },
 };
@@ -56,7 +56,7 @@ static const char bitmap_ip_usage[] =
 "where IP, FROM and TO are IPv4 addresses (or hostnames),\n"
 "      CIDR is a valid IPv4 CIDR prefix.\n";
 
-struct ipset_type ipset_bitmap_ip0 = {
+static struct ipset_type ipset_bitmap_ip0 = {
 	.name = "bitmap:ip",
 	.alias = { "ipmap", NULL },
 	.revision = 0,
@@ -95,3 +95,9 @@ struct ipset_type ipset_bitmap_ip0 = {
 
 	.usage = bitmap_ip_usage,
 };
+
+void _init(void);
+void _init(void)
+{
+	ipset_type_add(&ipset_bitmap_ip0);
+}

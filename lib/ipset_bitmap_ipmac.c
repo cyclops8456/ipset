@@ -17,7 +17,7 @@ static const struct ipset_arg bitmap_ipmac_create_args[] = {
 	},
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	/* Backward compatibility */
 	{ .name = { "from", NULL },
@@ -38,7 +38,7 @@ static const struct ipset_arg bitmap_ipmac_create_args[] = {
 static const struct ipset_arg bitmap_ipmac_add_args[] = {
 	{ .name = { "timeout", NULL },
 	  .has_arg = IPSET_MANDATORY_ARG,	.opt = IPSET_OPT_TIMEOUT,
-	  .parse = ipset_parse_uint32,		.print = ipset_print_number,
+	  .parse = ipset_parse_timeout,		.print = ipset_print_number,
 	},
 	{ },
 };
@@ -53,7 +53,7 @@ static const char bitmap_ipmac_usage[] =
 "      CIDR is a valid IPv4 CIDR prefix,\n"
 "      MAC is a valid MAC address.\n";
 
-struct ipset_type ipset_bitmap_ipmac0 = {
+static struct ipset_type ipset_bitmap_ipmac0 = {
 	.name = "bitmap:ip,mac",
 	.alias = { "macipmap", NULL },
 	.revision = 0,
@@ -98,3 +98,9 @@ struct ipset_type ipset_bitmap_ipmac0 = {
 
 	.usage = bitmap_ipmac_usage,
 };
+
+void _init(void);
+void _init(void)
+{
+	ipset_type_add(&ipset_bitmap_ipmac0);
+}
