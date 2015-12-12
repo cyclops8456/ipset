@@ -842,18 +842,19 @@ list_create(struct ipset_session *session, struct nlattr *nla[])
 		break;
 	case IPSET_LIST_PLAIN:
 		safe_snprintf(session, "%sName: %s\n"
-			      "Type: %s\nHeader: ",
+			      "Type: %s\nRevision: %u\nHeader: ",
 			      session->printed_set ? "\n" : "",
 			      ipset_data_setname(data),
-			      type->name);
+			      type->name, type->revision);
 		break;
 	case IPSET_LIST_XML:
 		safe_snprintf(session,
 			      "<ipset name=\"%s\">\n"
 			      "  <type>%s</type>\n"
+			      "  <revision%u</revision\n"
 			      "  <header>\n",
 			      ipset_data_setname(data),
-			      type->name);
+			      type->name, type->revision);
 		break;
 	default:
 		break;
@@ -1506,7 +1507,8 @@ data2attr(struct ipset_session *session, struct nlmsghdr *nlh,
 	data2attr(session, nlh, data, type, family, attrs)
 
 #define ADDATTR_SETNAME(session, nlh, data)				\
-	data2attr(session, nlh, data, IPSET_ATTR_SETNAME, NFPROTO_IPV4, cmd_attrs)
+	data2attr(session, nlh, data, IPSET_ATTR_SETNAME, NFPROTO_IPV4,	\
+		  cmd_attrs)
 
 #define ADDATTR_IF(session, nlh, data, type, family, attrs)		\
 	ipset_data_test(data, attrs[type].opt) ?			\
@@ -1672,8 +1674,8 @@ build_msg(struct ipset_session *session, bool aggregate)
 			ADDATTR_SETNAME(session, nlh, data);
 		if (flags && session->mode != IPSET_LIST_SAVE) {
 			ipset_data_set(data, IPSET_OPT_FLAGS, &flags);
-			ADDATTR(session, nlh, data, IPSET_ATTR_FLAGS, NFPROTO_IPV4,
-				cmd_attrs);
+			ADDATTR(session, nlh, data, IPSET_ATTR_FLAGS,
+				NFPROTO_IPV4, cmd_attrs);
 		}
 		break;
 	}

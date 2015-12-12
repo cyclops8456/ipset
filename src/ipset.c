@@ -129,17 +129,18 @@ help(void)
 }
 
 int
-ipset_parse_file(struct ipset_session *session UNUSED,
+ipset_parse_file(struct ipset_session *s UNUSED,
 		 int opt UNUSED, const char *str)
 {
 	if (filename != NULL)
 		return exit_error(PARAMETER_PROBLEM,
 				  "-file option can be specified once");
 	filename = str;
-	
+
 	return 0;
 }
 
+static
 int __attribute__ ((format (printf, 1, 2)))
 ipset_print_file(const char *fmt, ...)
 {
@@ -149,7 +150,7 @@ ipset_print_file(const char *fmt, ...)
 	assert(fd != NULL);
 	va_start(args, fmt);
 	len = vfprintf(fd, fmt, args);
-	va_end(args); 
+	va_end(args);
 
 	return len;
 }
@@ -190,7 +191,7 @@ restore(char *argv0)
 {
 	int ret = 0;
 	char *c;
-	FILE *fread = stdin;
+	FILE *rfd = stdin;
 
 	/* Initialize newargv/newargc */
 	newargc = 0;
@@ -202,10 +203,10 @@ restore(char *argv0)
 					  "Cannot open %s for reading: %s",
 					  filename, strerror(errno));
 		}
-		fread = fd;
+		rfd = fd;
 	}
 
-	while (fgets(cmdline, sizeof(cmdline), fread)) {
+	while (fgets(cmdline, sizeof(cmdline), rfd)) {
 		restore_line++;
 		c = cmdline;
 		while (isspace(c[0]))
@@ -623,14 +624,14 @@ parse_commandline(int argc, char *argv[])
 					       type->family == NFPROTO_IPV4
 						? "INET" : "INET6");
 			} else {
-				const char *name = NULL;
-
 				printf("\nSupported set types:\n");
 				type = ipset_types();
 				while (type) {
-					if (!(name && STREQ(name, type->name)))
-						printf("    %s\n", type->name);
-					name = type->name;
+					printf("    %s\t%s%u\t%s\n",
+					       type->name,
+					       strlen(type->name) < 12 ? "\t" : "",
+					       type->revision,
+					       type->description);
 					type = type->next;
 				}
 			}

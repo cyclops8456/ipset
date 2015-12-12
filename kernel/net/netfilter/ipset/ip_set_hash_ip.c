@@ -24,9 +24,12 @@
 #include <linux/netfilter/ipset/ip_set_timeout.h>
 #include <linux/netfilter/ipset/ip_set_hash.h>
 
+#define REVISION_MIN	0
+#define REVISION_MAX	0
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
-MODULE_DESCRIPTION("hash:ip type of IP sets");
+IP_SET_MODULE_DESC("hash:ip", REVISION_MIN, REVISION_MAX);
 MODULE_ALIAS("ip_set_hash:ip");
 
 /* Type specific function prefix */
@@ -179,7 +182,7 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	} else if (tb[IPSET_ATTR_CIDR]) {
 		u8 cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
 
-		if (cidr > 32)
+		if (!cidr || cidr > 32)
 			return -IPSET_ERR_INVALID_CIDR;
 		ip_set_mask_from_to(ip, ip_to, cidr);
 	} else
@@ -452,8 +455,8 @@ static struct ip_set_type hash_ip_type __read_mostly = {
 	.features	= IPSET_TYPE_IP,
 	.dimension	= IPSET_DIM_ONE,
 	.family		= NFPROTO_UNSPEC,
-	.revision_min	= 0,
-	.revision_max	= 0,
+	.revision_min	= REVISION_MIN,
+	.revision_max	= REVISION_MAX,
 	.create		= hash_ip_create,
 	.create_policy	= {
 		[IPSET_ATTR_HASHSIZE]	= { .type = NLA_U32 },
