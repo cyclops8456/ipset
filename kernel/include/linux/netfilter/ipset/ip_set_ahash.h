@@ -4,6 +4,9 @@
 #include <linux/rcupdate.h>
 #include <linux/jhash.h>
 #include <linux/netfilter/ipset/ip_set_timeout.h>
+#ifndef rcu_dereference_bh
+#define rcu_dereference_bh(p)	rcu_dereference(p)
+#endif
 
 #define CONCAT(a, b, c)		a##b##c
 #define TOKEN(a, b, c)		CONCAT(a, b, c)
@@ -162,7 +165,7 @@ add_cidr(struct ip_set_hash *h, u8 cidr, u8 nets_length)
 		}
 	}
 	if (j != -1) {
-		for (; j != -1 && i > j; i--) {
+		for (; i > j; i--) {
 			h->nets[i].cidr = h->nets[i - 1].cidr;
 			h->nets[i].nets = h->nets[i - 1].nets;
 		}

@@ -1,5 +1,5 @@
 dnl Boilerplate
-AC_INIT([ipset], [6.14], [kadlec@blackhole.kfki.hu])
+AC_INIT([ipset], [6.15], [kadlec@blackhole.kfki.hu])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIR([m4])
@@ -92,6 +92,12 @@ AC_ARG_ENABLE([verbose],
 	       *) AC_MSG_ERROR([bad value ${enableval} for --enable-verbose]) ;;
 	       esac], [enable_verbose=no])
 	      
+AC_ARG_ENABLE([debug],
+	AS_HELP_STRING([--enable-debug], [enable debug messages @<:@default=disabled@:>@]),
+	[], [enable_debug=no])
+AS_IF([test "x$enable_debug" = "xyes"], [
+	AC_DEFINE(ENABLE_DEBUG, [1], [Debug messages.])
+])
 AM_CONDITIONAL([ENABLE_DEBUG], [test "x$enable_debug" = xyes])
 
 dnl Enable type modules
@@ -155,6 +161,9 @@ dnl Checks for typedefs, structures
 AC_CHECK_TYPES([union nf_inet_addr],,,[#include <linux/types.h>
 #include <netinet/in.h>
 #include <linux/netfilter.h>])
+
+dnl Checks for functions
+AC_CHECK_FUNCS(gethostbyname2)
 
 dnl Checks for  compiler characteristics.
 dnl Check extra warning flags except
