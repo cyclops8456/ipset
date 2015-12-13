@@ -442,11 +442,10 @@ ipset_parse_proto(struct ipset_session *session,
 	protoent = getprotobyname(strcasecmp(str, "icmpv6") == 0
 				  ? "ipv6-icmp" : str);
 	if (protoent == NULL) {
-		uint8_t protonum;
-		int err;
+		uint8_t protonum = 0;
 
-		if (!((err = string_to_u8(session, str, &protonum) == 0) &&
-		      (protoent = getprotobynumber(protonum)) != NULL))
+		if (string_to_u8(session, str, &protonum) ||
+		    (protoent = getprotobynumber(protonum)) == NULL)
 			return syntax_err("cannot parse '%s' "
 					  "as a protocol", str);
 	}
@@ -615,7 +614,9 @@ ipset_parse_proto_port(struct ipset_session *session,
 		default:
 			if (!STREQ(a, "0")) {
 				syntax_err("Protocol %s can be used "
-					   "with pseudo port value 0 only.");
+					   "with pseudo port value 0 only.",
+					   tmp);
+				err = -1;
 				goto error;
 			}
 			ipset_data_flags_set(data, IPSET_FLAG(opt));

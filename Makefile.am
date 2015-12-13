@@ -21,6 +21,7 @@ modules_sparse:
 if WITH_KMOD
 	${MAKE} -C $(KBUILD_OUTPUT) M=$$PWD/kernel/net/netfilter \
 			V=$V C=2 CF=-D__CHECK_ENDIAN__ \
+			KCFLAGS="-DPACKAGE_VERSION=$(PACKAGE_VERSION)" \
 			IP_SET_MAX=$(IP_SET_MAX) KDIR=$$PWD/kernel modules
 else
 	@echo Skipping kernel modules due to --with-kmod=no
@@ -29,6 +30,7 @@ endif
 modules:
 if WITH_KMOD
 	${MAKE} -C $(KBUILD_OUTPUT) M=$$PWD/kernel/net/netfilter V=$V \
+			KCFLAGS="-DPACKAGE_VERSION=$(PACKAGE_VERSION)" \
 			IP_SET_MAX=$(IP_SET_MAX) KDIR=$$PWD/kernel modules
 else
 	@echo Skipping kernel modules due to --with-kmod=no
@@ -55,6 +57,14 @@ update_includes:
 	./update ip_set_bitmap.h
 	./update ip_set_hash.h
 	./update ip_set_list.h
+
+update_utils:
+	wget -O /tmp/ipset-bash-completion.tar.gz http://sourceforge.net/projects/ipset-bashcompl/files/latest/download
+	cd utils/ipset_bash_completion; tar xz --strip-components=1 -f /tmp/ipset-bash-completion.tar.gz
+	rm -f /tmp/ipset-bash-completion.tar.gz
+	wget -O /tmp/ipset-list.tar.gz http://sourceforge.net/projects/ipset-list/files/latest/download
+	cd utils/ipset_list; tar xz --strip-components=1 -f /tmp/ipset-list.tar.gz
+	rm -f /tmp/ipset-list.tar.gz
 
 tests:
 	cd tests; ./runtest.sh
