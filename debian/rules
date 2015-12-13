@@ -19,6 +19,13 @@ Makefile: Makefile.in
 Makefile.in: Makefile.am configure.ac
 	autoreconf -i --force
 
+clean:
+	dh_testdir
+	dh_testroot
+	dh_clean 
+
+	$(MAKE) clean
+
 install: build
 	dh install --before dh_auto_configure
 	dh install --after dh_auto_test
