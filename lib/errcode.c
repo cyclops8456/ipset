@@ -57,7 +57,7 @@ static const struct ipset_errcode_table core_errcode_table[] = {
 	{ IPSET_ERR_EXIST_SETNAME2, IPSET_CMD_SWAP,
 	  "Sets cannot be swapped: the second set does not exist" },
 	{ IPSET_ERR_TYPE_MISMATCH, IPSET_CMD_SWAP,
-	  "The sets cannot be swapped: they type does not match" },
+	  "The sets cannot be swapped: their type does not match" },
 
 	/* LIST/SAVE specific error codes */
 
@@ -72,6 +72,8 @@ static const struct ipset_errcode_table core_errcode_table[] = {
 	  "An IPv6 address is expected, but not received" },
 	{ IPSET_ERR_COUNTER, 0,
 	  "Packet/byte counters cannot be used: set was created without counter support" },
+	{ IPSET_ERR_COMMENT, 0,
+	  "Comment string is too long!" },
 
 	/* ADD specific error codes */
 	{ IPSET_ERR_EXIST, IPSET_CMD_ADD,

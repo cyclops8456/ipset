@@ -53,6 +53,14 @@ case "$2" in
     	    done
     	done
     	;;
+    netportnet)
+    	$ipset n test hash:net,port,net $1 hashsize 64 timeout 100
+    	for x in `seq 0 16`; do
+    	    for y in `seq 0 128`; do
+    	    	$ipset a test $ip$x$sep$y/$net,1023,$ip$y$sep$x/$net
+    	    done
+    	done
+    	;;
     net)
     	$ipset n test hash:net $1 hashsize 64 timeout 100
     	for x in `seq 0 16`; do
@@ -61,6 +69,14 @@ case "$2" in
     	    done
     	done
     	;;
+    netnet)
+	$ipset n test hash:net,net $1 hashsize 64 timeout 100
+	for x in `seq 0 16`; do
+	    for y in `seq 0 255`; do
+		$ipset a test $ip$x$sep$y/$net,$ip$y$sep$x/$net
+	    done
+	done
+	;;
     netport)
     	$ipset n test hash:net,port $1 hashsize 64 timeout 100
     	for x in `seq 0 16`; do

@@ -637,6 +637,44 @@ error:
 }
 
 /**
+ * ipset_parse_tcp_udp_port - parse (optional) protocol and a single port
+ * @session: session structure
+ * @opt: option kind of the data
+ * @str: string to parse
+ *
+ * Parse string as a protocol and port, separated by a colon.
+ * The protocol part is optional, but may only be "tcp" or "udp".
+ * The parsed port numbers are stored in the data
+ * blob of the session.
+ *
+ * Returns 0 on success or a negative error code.
+ */
+int
+ipset_parse_tcp_udp_port(struct ipset_session *session,
+			 enum ipset_opt opt, const char *str)
+{
+	struct ipset_data *data;
+	int err = 0;
+	uint8_t	p = 0;
+
+	err = ipset_parse_proto_port(session, opt, str);
+
+	if (!err) {
+		data = ipset_session_data(session);
+
+		p = *(const uint8_t *) ipset_data_get(data, IPSET_OPT_PROTO);
+		if (p != IPPROTO_TCP && p != IPPROTO_UDP) {
+			syntax_err("Only protocols TCP and UDP are valid");
+			err = -1 ;
+		} else {
+			/* Reset the protocol to none */
+			ipset_data_flags_unset(data, IPSET_FLAG(IPSET_OPT_PROTO));
+		}
+	}
+	return err;
+}
+
+/**
  * ipset_parse_family - parse INET|INET6 family names
  * @session: session structure
  * @opt: option kind of the data
@@ -1591,16 +1629,14 @@ ipset_parse_netmask(struct ipset_session *session,
 		ipset_data_set(data, IPSET_OPT_FAMILY, &family);
 	}
 
-	err = string_to_cidr(session, str,
-			     family == NFPROTO_IPV4 ? 1 : 4,
-			     family == NFPROTO_IPV4 ? 31 : 124,
+	err = string_to_cidr(session, str, 1,
+			     family == NFPROTO_IPV4 ? 32 : 128,
 			     &cidr);
 
 	if (err)
 		return syntax_err("netmask is out of the inclusive range "
-				  "of %u-%u",
-				  family == NFPROTO_IPV4 ? 1 : 4,
-				  family == NFPROTO_IPV4 ? 31 : 124);
+				  "of 1-%u",
+				  family == NFPROTO_IPV4 ? 32 : 128);
 
 	return ipset_data_set(data, opt, &cidr);
 }
@@ -1700,6 +1736,35 @@ ipset_parse_iface(struct ipset_session *session,
 				  str + offset, IFNAMSIZ - 1);
 
 	return ipset_data_set(data, opt, str + offset);
+}
+
+/**
+ * ipset_parse_comment - parse string as a comment
+ * @session: session structure
+ * @opt: option kind of the data
+ * @str: string to parse
+ *
+ * Parse string for use as a comment on an ipset entry.
+ * Gets stored in the data blob as usual.
+ *
+ * Returns 0 on success or a negative error code.
+ */
+int ipset_parse_comment(struct ipset_session *session,
+		       enum ipset_opt opt, const char *str)
+{
+	struct ipset_data *data;
+
+	assert(session);
+	assert(opt == IPSET_OPT_ADT_COMMENT);
+	assert(str);
+
+	data = ipset_session_data(session);
+	if (strchr(str, '"'))
+		return syntax_err("\" character is not permitted in comments");
+	if (strlen(str) > IPSET_MAX_COMMENT_SIZE)
+		return syntax_err("Comment is longer than the maximum allowed "
+				  "%d characters", IPSET_MAX_COMMENT_SIZE);
+	return ipset_data_set(data, opt, str);
 }
 
 /**
@@ -1812,7 +1877,7 @@ do {					\
  */
 int
 ipset_parse_elem(struct ipset_session *session,
-		 enum ipset_opt optional, const char *str)
+		 bool optional, const char *str)
 {
 	const struct ipset_type *type;
 	char *a = NULL, *b = NULL, *tmp, *saved;

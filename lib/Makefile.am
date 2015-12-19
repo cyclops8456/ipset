@@ -9,6 +9,8 @@ IPSET_SETTYPE_LIST = \
 	ipset_hash_ipportip.c \
 	ipset_hash_ipportnet.c \
 	ipset_hash_net.c \
+	ipset_hash_netnet.c \
+	ipset_hash_netportnet.c \
 	ipset_hash_netport.c \
 	ipset_hash_netiface.c \
 	ipset_list_set.c
@@ -35,6 +37,9 @@ libipset_la_SOURCES = \
 	types_init.c
 
 EXTRA_DIST = $(IPSET_SETTYPE_LIST) libipset.map
+
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = libipset.pc
 
 sparse-check: $(libipset_la_SOURCES:.c=.d)
 

@@ -9,9 +9,10 @@ tests="$tests iphash hash:ip hash:ip6"
 tests="$tests ipporthash hash:ip,port hash:ip6,port"
 tests="$tests ipportiphash hash:ip,port,ip hash:ip6,port,ip6"
 tests="$tests nethash hash:net hash:net6 hash:net,port hash:net6,port"
-tests="$tests hash:ip,port,net hash:ip6,port,net6"
+tests="$tests hash:ip,port,net hash:ip6,port,net6 hash:net,net hash:net6,net6"
+tests="$tests hash:net,port,net hash:net6,port,net6"
 tests="$tests hash:net,iface.t"
-tests="$tests setlist restore"
+tests="$tests comment setlist restore"
 # tests="$tests iptree iptreemap"
 
 # For correct sorting:
@@ -58,6 +59,9 @@ else
 	add_tests inet 10.255.255
 	add_tests inet6 1002:1002:1002:1002::
 fi
+
+# Make sure the scripts are executable
+chmod a+x check_* *.sh
 
 for types in $tests; do
     ../src/ipset -X test >/dev/null 2>&1
